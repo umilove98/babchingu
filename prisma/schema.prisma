@@ -111,3 +111,10 @@ model Notification {
 
   @@index([userId, readAt, createdAt])
 }
+
+model CustomHoliday {
+  date      String   @id   // 'YYYY-MM-DD'
+  reason    String
+  createdBy String?
+  createdAt DateTime @default(now())
+}

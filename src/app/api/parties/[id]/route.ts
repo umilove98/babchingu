@@ -93,7 +93,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     if (party.kind !== "eatout") {
       return NextResponse.json({ error: "외식 파티만 날짜 이동이 가능해요" }, { status: 400 });
     }
-    if (isHoliday(parsed.data.partyDate)) {
+    if (await isHoliday(parsed.data.partyDate)) {
       return NextResponse.json({ error: "휴일에는 외식을 등록할 수 없어요" }, { status: 400 });
     }
     data.partyDate = parsed.data.partyDate;

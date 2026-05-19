@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
 
   const { date } = parsed.data;
-  if (isHoliday(date)) {
+  if (await isHoliday(date)) {
     return NextResponse.json({ error: "휴일에는 도시락 모임을 만들 수 없어요" }, { status: 400 });
   }
   const id = dosirakIdFor(date);

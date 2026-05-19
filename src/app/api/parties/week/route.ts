@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireMe } from "@/lib/auth";
 import { daysFrom, dosirakIdFor, mondayOfIsoWeek, currentIsoWeek } from "@/lib/date";
-import { holidayOf } from "@/lib/holidays";
+import { holidaysForDates } from "@/lib/holidays";
 
 export async function GET(req: Request) {
   try { await requireMe(); }
@@ -35,8 +35,9 @@ export async function GET(req: Request) {
     byDay.get(p.partyDate)!.push(p);
   }
 
+  const holidayMap = await holidaysForDates(days);
   const result = days.map((date) => {
-    const holiday = holidayOf(date);
+    const holiday = holidayMap[date] ?? null;
     const list = byDay.get(date) ?? [];
     const dos = list.find((p) => p.kind === "dosirak");
     const eatouts = list.filter((p) => p.kind === "eatout");

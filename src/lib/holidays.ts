@@ -1,8 +1,10 @@
-// 한국 법정공휴일 (대체공휴일 포함)
-// 출처: 천문우주지식정보 KASI. 음력 기반 공휴일 때문에 매년 수동 갱신 필요.
-// YYYY-MM-DD → 공휴일 이름
+// 한국 법정공휴일 + 사내 등록 휴일.
+// 법정공휴일은 static, 사내 휴일은 CustomHoliday 테이블에서 조회.
+// 서버 사이드 전용 (Prisma 사용).
 
-const HOLIDAYS: Record<string, string> = {
+import { prisma } from "./db";
+
+const STATIC_HOLIDAYS: Record<string, string> = {
   // 2025
   "2025-01-01": "신정",
   "2025-01-28": "설날 연휴",
@@ -67,10 +69,36 @@ const HOLIDAYS: Record<string, string> = {
   "2027-12-25": "성탄절",
 };
 
-export function holidayOf(dateStr: string): string | null {
-  return HOLIDAYS[dateStr] ?? null;
+function staticHolidayOf(dateStr: string): string | null {
+  return STATIC_HOLIDAYS[dateStr] ?? null;
 }
 
-export function isHoliday(dateStr: string): boolean {
-  return dateStr in HOLIDAYS;
+/** 단일 날짜 휴일 여부·사유. static 우선, 없으면 DB 조회. */
+export async function holidayOf(dateStr: string): Promise<string | null> {
+  const stat = staticHolidayOf(dateStr);
+  if (stat) return stat;
+  const custom = await prisma.customHoliday.findUnique({ where: { date: dateStr } });
+  return custom?.reason ?? null;
+}
+
+export async function isHoliday(dateStr: string): Promise<boolean> {
+  return Boolean(await holidayOf(dateStr));
+}
+
+/** 여러 날짜 한 번에 조회 — 캘린더 주간 조회 등에 유용. */
+export async function holidaysForDates(dates: string[]): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  const needsDb: string[] = [];
+  for (const d of dates) {
+    const s = staticHolidayOf(d);
+    if (s) result[d] = s;
+    else needsDb.push(d);
+  }
+  if (needsDb.length) {
+    const customs = await prisma.customHoliday.findMany({
+      where: { date: { in: needsDb } },
+    });
+    for (const c of customs) result[c.date] = c.reason;
+  }
+  return result;
 }

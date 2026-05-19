@@ -89,6 +89,8 @@ export function AdminPanel({ myId }: { myId: string }) {
         error={createUser.error?.message}
       />
 
+      <HolidayManager />
+
       {issuedPassword && (
         <div className="bg-mint p-4 rounded-xl shadow-pop-sm border-2 border-white">
           <p className="text-sm font-semibold mb-1">비밀번호가 발급되었어요</p>
@@ -222,6 +224,117 @@ function CreateUserCard({
         {loading ? "발급 중…" : "발급하기"}
       </Button>
     </form>
+  );
+}
+
+function HolidayManager() {
+  const qc = useQueryClient();
+  const [date, setDate] = useState("");
+  const [reason, setReason] = useState("");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["holidays"],
+    queryFn: async () => {
+      const res = await fetch("/api/holidays");
+      if (!res.ok) throw new Error("불러오기 실패");
+      return res.json() as Promise<{
+        items: { date: string; reason: string; createdAt: string }[];
+      }>;
+    },
+  });
+
+  const add = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/holidays", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ date, reason: reason.trim() }),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(b.error ?? "추가 실패");
+    },
+    onSuccess: () => {
+      setDate("");
+      setReason("");
+      qc.invalidateQueries({ queryKey: ["holidays"] });
+      qc.invalidateQueries({ queryKey: ["week"] });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: async (d: string) => {
+      const res = await fetch("/api/holidays", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ date: d }),
+      });
+      if (!res.ok) throw new Error("삭제 실패");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["holidays"] });
+      qc.invalidateQueries({ queryKey: ["week"] });
+    },
+  });
+
+  return (
+    <div className="bg-white rounded-2xl shadow-pop border-2 border-white p-5">
+      <h2 className="font-display font-bold text-xl mb-4">휴일 등록</h2>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (date && reason.trim()) add.mutate();
+        }}
+        className="grid sm:grid-cols-[auto_1fr_auto] gap-2 items-end mb-4"
+      >
+        <div>
+          <label className="text-xs font-semibold text-ink-soft px-1 block mb-1">날짜</label>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-ink-soft px-1 block mb-1">사유</label>
+          <Input
+            placeholder="예: 창립기념일, 워크샵"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            maxLength={60}
+            required
+          />
+        </div>
+        <Button type="submit" disabled={add.isPending || !date || !reason.trim()}>
+          {add.isPending ? "추가 중…" : "추가"}
+        </Button>
+      </form>
+      {add.error && <p className="text-bubblegum text-sm mb-3">{add.error.message}</p>}
+
+      {isLoading ? (
+        <p className="text-sm text-ink-soft text-center py-4">불러오는 중…</p>
+      ) : !data?.items.length ? (
+        <p className="text-sm text-ink-soft/70 text-center py-4">등록된 휴일이 없어요</p>
+      ) : (
+        <ul className="divide-y divide-cream-deep border-t border-cream-deep">
+          {data.items.map((h) => (
+            <li key={h.date} className="py-2 flex items-center gap-3">
+              <span className="font-mono text-sm font-semibold w-28">{h.date}</span>
+              <span className="flex-1 text-sm">{h.reason}</span>
+              <button
+                onClick={() => {
+                  if (confirm(`${h.date} (${h.reason}) 휴일을 삭제할까요?`)) {
+                    remove.mutate(h.date);
+                  }
+                }}
+                className="text-xs text-bubblegum hover:underline"
+              >
+                삭제
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-[11px] text-ink-soft mt-3">
+        법정공휴일은 코드에 미리 등록되어 있으니 여기엔 사내 특정 휴일만 추가하세요.
+      </p>
+    </div>
   );
 }
 

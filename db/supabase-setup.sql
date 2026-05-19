@@ -70,6 +70,13 @@ create table if not exists "Notification" (
   "createdAt" timestamptz not null default now()
 );
 
+create table if not exists "CustomHoliday" (
+  date        text primary key,                            -- 'YYYY-MM-DD'
+  reason      text not null,
+  "createdBy" text,
+  "createdAt" timestamptz not null default now()
+);
+
 -- ------------------------------------------------------------
 -- 2. 인덱스
 -- ------------------------------------------------------------
