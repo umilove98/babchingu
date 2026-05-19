@@ -92,6 +92,25 @@ export function RegisterForm({ initialWeek }: { initialWeek: string }) {
     },
   });
 
+  const hasChanges = useMemo(() => {
+    if (deletedIds.length > 0) return true;
+    if (!data) return false;
+    const original = new Map(data.parties.map((p) => [p.id, p]));
+    for (const item of items) {
+      if (!item.id) {
+        // 새 행: 식당명 입력이 있을 때만 dirty
+        if (item.restaurantName.trim()) return true;
+        continue;
+      }
+      const orig = original.get(item.id);
+      if (!orig) return true;
+      if ((orig.restaurantName ?? "") !== item.restaurantName.trim()) return true;
+      if ((orig.mapUrl ?? "") !== item.mapUrl.trim()) return true;
+      if (orig.partyDate !== item.partyDate) return true;
+    }
+    return false;
+  }, [items, deletedIds, data]);
+
   function addRowFor(date: string) {
     setItems((prev) => [
       ...prev,
@@ -194,16 +213,18 @@ export function RegisterForm({ initialWeek }: { initialWeek: string }) {
       )}
 
       <div className="flex items-center justify-between sticky bottom-4 bg-white rounded-2xl p-2 pl-5 shadow-pop-lg border-2 border-white">
-        <p className={cn("text-sm font-semibold", saveMsg ? "text-mint-deep" : "text-ink-soft")}>
-          {saveMsg ?? (save.error?.message ? save.error.message : "변경 후 저장하기")}
+        <p className={cn("text-sm font-semibold", saveMsg ? "text-peach-deep" : "text-ink-soft")}>
+          {saveMsg ?? (save.error?.message ? save.error.message : hasChanges ? "변경사항이 있어요" : "변경사항 없음")}
         </p>
         <div className="flex gap-2">
           <Button variant="ghost" size="md" onClick={() => router.push("/")}>
             돌아가기
           </Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending} size="md">
-            {save.isPending ? "저장 중…" : "저장하기"}
-          </Button>
+          {hasChanges && (
+            <Button onClick={() => save.mutate()} disabled={save.isPending} size="md">
+              {save.isPending ? "저장 중…" : "저장하기"}
+            </Button>
+          )}
         </div>
       </div>
     </div>

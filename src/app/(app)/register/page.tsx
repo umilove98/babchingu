@@ -14,7 +14,7 @@ export default async function RegisterPage({
   return (
     <div>
       <header className="mb-6">
-        <h1 className="font-display font-bold text-3xl">외식 일정 등록</h1>
+        <h1 className="font-display font-bold text-3xl">일정등록</h1>
         <p className="text-ink-soft text-sm mt-1">
           한 주 외식 계획을 한꺼번에 등록·수정·삭제할 수 있어요.
         </p>
