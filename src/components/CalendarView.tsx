@@ -273,16 +273,33 @@ function DosirakCard({
   onLeave: () => void;
   pending: boolean;
 }) {
+  const router = useRouter();
+  const navigate = () => {
+    if (partyId) router.push(`/party/${partyId}`);
+  };
   return (
-    <div className="bg-butter rounded-xl p-3 border border-butter-deep transition hover:bg-cream-deep">
+    <div
+      role={partyId ? "link" : undefined}
+      tabIndex={partyId ? 0 : -1}
+      onClick={navigate}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && partyId) {
+          e.preventDefault();
+          navigate();
+        }
+      }}
+      className={cn(
+        "bg-butter rounded-xl p-3 border border-butter-deep transition hover:bg-cream-deep",
+        partyId && "cursor-pointer",
+      )}
+    >
       <div className="flex items-center justify-between mb-2">
-        <Link
-          href={partyId ? `/party/${partyId}` : "#"}
-          className={cn("flex items-center gap-1.5", !partyId && "pointer-events-none")}
-        >
+        <div className="flex items-center gap-1.5">
           <span className="font-bold text-sm">도시락</span>
-        </Link>
-        <JoinPill joined={joined} onJoin={onJoin} onLeave={onLeave} pending={pending} />
+        </div>
+        <div onClick={(e) => e.stopPropagation()}>
+          <JoinPill joined={joined} onJoin={onJoin} onLeave={onLeave} pending={pending} />
+        </div>
       </div>
       <div className="flex items-center justify-between">
         {participants.length === 0 ? (
@@ -305,11 +322,29 @@ function EatoutCard({
   onLeave: () => void;
   pending: boolean;
 }) {
+  const router = useRouter();
   const tier = eatoutTier(party.participants.length);
+  const navigate = () => router.push(`/party/${party.id}`);
   return (
-    <div className={cn("rounded-xl p-3 border-2 transition", tier.bg, tier.border, tier.hover)}>
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={navigate}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          navigate();
+        }
+      }}
+      className={cn(
+        "rounded-xl p-3 border-2 transition cursor-pointer",
+        tier.bg,
+        tier.border,
+        tier.hover,
+      )}
+    >
       <div className="flex items-start justify-between gap-2 mb-2">
-        <Link href={`/party/${party.id}`} className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
             <span className="font-bold text-sm truncate">{party.restaurantName || "(이름 없음)"}</span>
           </div>
@@ -319,8 +354,10 @@ function EatoutCard({
               <span className="truncate">{party.host.displayName}</span>
             </div>
           )}
-        </Link>
-        <JoinPill joined={joined} onJoin={onJoin} onLeave={onLeave} pending={pending} />
+        </div>
+        <div onClick={(e) => e.stopPropagation()}>
+          <JoinPill joined={joined} onJoin={onJoin} onLeave={onLeave} pending={pending} />
+        </div>
       </div>
 
       <div className="flex items-center justify-between">
