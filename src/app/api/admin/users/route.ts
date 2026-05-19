@@ -13,7 +13,7 @@ export async function GET() {
   const users = await prisma.profile.findMany({
     orderBy: [{ isAdmin: "desc" }, { createdAt: "asc" }],
     select: {
-      id: true, username: true, displayName: true, avatarSeed: true,
+      id: true, username: true, displayName: true, avatarSeed: true, avatarUrl: true,
       canHost: true, isAdmin: true, createdAt: true,
     },
   });

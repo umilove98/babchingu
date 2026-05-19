@@ -3,7 +3,7 @@
 
 import { prisma } from "./db";
 
-type Kind = "new_member" | "new_comment" | "change_requested" | "restaurant_changed";
+type Kind = "new_member" | "new_comment" | "change_requested" | "restaurant_changed" | "invited" | "left";
 
 async function recipientsOfParty(partyId: string, excludeUserId?: string): Promise<string[]> {
   const [parts, party] = await Promise.all([
@@ -61,6 +61,72 @@ export async function notifyChangeRequested(
     new_name: newName,
     reason: reason ?? null,
   });
+}
+
+/** 초대 직후 호출. 각 invitee 에게 invited 알림 (이미 참가했거나 본인 제외). */
+export async function notifyInvited(partyId: string, inviterId: string, inviteeIds: string[]) {
+  if (!inviteeIds.length) return;
+  const filtered = inviteeIds.filter((id) => id !== inviterId);
+  if (!filtered.length) return;
+
+  // 이미 참가한 유저는 제외
+  const existing = await prisma.participation.findMany({
+    where: { partyId, userId: { in: filtered } },
+    select: { userId: true },
+  });
+  const existingSet = new Set(existing.map((p) => p.userId));
+  const targetIds = filtered.filter((id) => !existingSet.has(id));
+  if (!targetIds.length) return;
+
+  // 표시용 displayName 캐시 (recipient 가 본인 이름을 보는 형식이므로 payload 에 저장)
+  const invitees = await prisma.profile.findMany({
+    where: { id: { in: targetIds } },
+    select: { id: true, displayName: true },
+  });
+
+  await prisma.notification.createMany({
+    data: invitees.map((u) => ({
+      userId: u.id,
+      kind: "invited",
+      partyId,
+      actorId: inviterId,
+      payload: JSON.stringify({ invitee_name: u.displayName }),
+    })),
+  });
+}
+
+/** 떠남 알림: 참가자가 파티에서 나가면 호스트에게 통지. host=null(도시락) 또는 host=본인일 땐 noop. */
+export async function notifyLeft(partyId: string, leaverId: string) {
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    select: { hostId: true },
+  });
+  if (!party?.hostId || party.hostId === leaverId) return;
+  await prisma.notification.create({
+    data: { userId: party.hostId, kind: "left", partyId, actorId: leaverId },
+  });
+}
+
+/** 같은 날 다른 파티에 이미 참가 중이면 자동 탈퇴시키고 떠남 알림 발송. */
+export async function enforceSingleDayJoin(
+  userId: string,
+  partyDate: string,
+  exceptPartyId?: string,
+) {
+  const dupes = await prisma.participation.findMany({
+    where: {
+      userId,
+      ...(exceptPartyId ? { partyId: { not: exceptPartyId } } : {}),
+      party: { partyDate },
+    },
+    select: { partyId: true },
+  });
+  for (const p of dupes) {
+    await prisma.participation.delete({
+      where: { partyId_userId: { partyId: p.partyId, userId } },
+    });
+    await notifyLeft(p.partyId, userId);
+  }
 }
 
 /** 식당 변경(승인) 직후 호출. 참가자 + 호스트 전원에게. */

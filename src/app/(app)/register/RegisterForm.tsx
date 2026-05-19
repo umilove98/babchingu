@@ -87,7 +87,7 @@ export function RegisterForm({ initialWeek }: { initialWeek: string }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["register", week] });
       qc.invalidateQueries({ queryKey: ["week", week] });
-      setSaveMsg("저장됐어요! 🎉");
+      setSaveMsg("저장됐어요!");
       setTimeout(() => setSaveMsg(null), 2500);
     },
   });
@@ -113,8 +113,9 @@ export function RegisterForm({ initialWeek }: { initialWeek: string }) {
     <div className="space-y-5">
       <div className="flex items-center gap-2 justify-between flex-wrap bg-white p-3 rounded-xl shadow-pop-sm border-2 border-white">
         <div>
-          <strong className="font-display text-lg">{week}</strong>
-          <span className="text-ink-soft text-sm ml-2">{formatKoreanDate(monday)}부터</span>
+          <strong className="font-display text-lg">
+            {formatKoreanDate(days[0])} - {formatKoreanDate(days[days.length - 1])}
+          </strong>
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -194,14 +195,14 @@ export function RegisterForm({ initialWeek }: { initialWeek: string }) {
 
       <div className="flex items-center justify-between sticky bottom-4 bg-white rounded-2xl p-2 pl-5 shadow-pop-lg border-2 border-white">
         <p className={cn("text-sm font-semibold", saveMsg ? "text-mint-deep" : "text-ink-soft")}>
-          {saveMsg ?? (save.error?.message ? `🙀 ${save.error.message}` : "변경 후 저장하기")}
+          {saveMsg ?? (save.error?.message ? save.error.message : "변경 후 저장하기")}
         </p>
         <div className="flex gap-2">
           <Button variant="ghost" size="md" onClick={() => router.push("/")}>
             돌아가기
           </Button>
           <Button onClick={() => save.mutate()} disabled={save.isPending} size="md">
-            {save.isPending ? "저장 중…" : "저장하기 💾"}
+            {save.isPending ? "저장 중…" : "저장하기"}
           </Button>
         </div>
       </div>

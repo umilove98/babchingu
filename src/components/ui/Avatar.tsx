@@ -10,23 +10,27 @@ const sizeMap: Record<Size, string> = {
 
 export function Avatar({
   seed,
+  url,
   size = "md",
   className,
   ring = true,
 }: {
   seed: string;
+  url?: string | null;
   size?: Size;
   className?: string;
   ring?: boolean;
 }) {
-  // DiceBear: bottts-neutral 은 귀여운 로봇. backgroundColor 도 우리 팔레트로.
-  const url = `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(
-    seed,
-  )}&backgroundColor=ffe6a7,b8e6cf,ffd3b6,c5baff,b6e5ff,ffb6c8&radius=50`;
+  // 업로드된 이미지가 있으면 우선 사용, 아니면 DiceBear 시드 기반 생성
+  const src = url
+    ? url
+    : `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(
+        seed,
+      )}&backgroundColor=ffe6a7,b8e6cf,ffd3b6,c5baff,b6e5ff,ffb6c8&radius=50`;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={url}
+      src={src}
       alt={seed}
       className={cn(
         "inline-block rounded-full bg-white/70 object-cover",

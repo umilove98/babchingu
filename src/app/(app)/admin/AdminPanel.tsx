@@ -10,7 +10,7 @@ type User = {
   id: string;
   username: string;
   displayName: string;
-  avatarSeed: string;
+  avatarSeed: string; avatarUrl?: string | null;
   canHost: boolean;
   isAdmin: boolean;
   createdAt: string;
@@ -49,7 +49,7 @@ export function AdminPanel({ myId }: { myId: string }) {
   });
 
   const patchUser = useMutation({
-    mutationFn: async (payload: { id: string } & Partial<Pick<User, "canHost" | "isAdmin">> & { resetPassword?: boolean }) => {
+    mutationFn: async (payload: { id: string } & Partial<Pick<User, "canHost" | "isAdmin" | "displayName">> & { resetPassword?: boolean }) => {
       const res = await fetch("/api/admin/users", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
@@ -91,7 +91,7 @@ export function AdminPanel({ myId }: { myId: string }) {
 
       {issuedPassword && (
         <div className="bg-mint p-4 rounded-xl shadow-pop-sm border-2 border-white">
-          <p className="text-sm font-semibold mb-1">✨ 비밀번호가 발급되었어요</p>
+          <p className="text-sm font-semibold mb-1">비밀번호가 발급되었어요</p>
           <p className="text-sm">
             <strong>{issuedPassword.username}</strong> 님에게 아래 비밀번호를 전달해 주세요:
           </p>
@@ -109,7 +109,7 @@ export function AdminPanel({ myId }: { myId: string }) {
 
       <div className="bg-white rounded-2xl shadow-pop border-2 border-white overflow-hidden">
         <div className="px-5 py-4 border-b border-cream-deep">
-          <h2 className="font-display font-bold text-xl">👥 사용자 목록</h2>
+          <h2 className="font-display font-bold text-xl">사용자 목록</h2>
         </div>
         {isLoading ? (
           <p className="p-8 text-center text-ink-soft">불러오는 중…</p>
@@ -117,10 +117,13 @@ export function AdminPanel({ myId }: { myId: string }) {
           <ul className="divide-y divide-cream-deep">
             {data?.users.map((u) => (
               <li key={u.id} className="px-5 py-3 flex items-center gap-3 flex-wrap">
-                <Avatar seed={u.avatarSeed} />
+                <Avatar seed={u.avatarSeed} url={u.avatarUrl} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold">{u.displayName}</span>
+                    <EditableName
+                      value={u.displayName}
+                      onSave={(v) => patchUser.mutate({ id: u.id, displayName: v })}
+                    />
                     <span className="text-xs text-ink-soft">@{u.username}</span>
                     {u.isAdmin && <Tag color="lavender">관리자</Tag>}
                     {u.canHost && <Tag color="butter">호스트</Tag>}
@@ -141,7 +144,7 @@ export function AdminPanel({ myId }: { myId: string }) {
                       }
                     }}
                   >
-                    🔑 비번 재발급
+                    비번 재발급
                   </Button>
                   {u.id !== myId && (
                     <Button
@@ -195,7 +198,7 @@ function CreateUserCard({
       }}
       className="bg-white rounded-2xl shadow-pop border-2 border-white p-5"
     >
-      <h2 className="font-display font-bold text-xl mb-4">✏️ 새 계정 발급</h2>
+      <h2 className="font-display font-bold text-xl mb-4">새 계정 발급</h2>
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-ink-soft px-1">아이디</label>
@@ -211,14 +214,53 @@ function CreateUserCard({
         </div>
       </div>
       <div className="flex gap-3 mt-4 flex-wrap items-center">
-        <Checkbox checked={canHost} onChange={setCanHost} label="🍜 외식 등록 권한" />
-        <Checkbox checked={isAdmin} onChange={setIsAdmin} label="🛠 관리자 권한" />
+        <Checkbox checked={canHost} onChange={setCanHost} label="외식 등록 권한" />
+        <Checkbox checked={isAdmin} onChange={setIsAdmin} label="관리자 권한" />
       </div>
-      {error && <p className="text-bubblegum text-sm mt-3">🙀 {error}</p>}
+      {error && <p className="text-bubblegum text-sm mt-3">{error}</p>}
       <Button type="submit" disabled={loading} className="mt-4">
-        {loading ? "발급 중…" : "발급하기 ✨"}
+        {loading ? "발급 중…" : "발급하기"}
       </Button>
     </form>
+  );
+}
+
+function EditableName({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  function commit() {
+    const trimmed = draft.trim();
+    setEditing(false);
+    if (trimmed && trimmed !== value) onSave(trimmed);
+    else setDraft(value);
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") { setDraft(value); setEditing(false); }
+        }}
+        className="font-bold bg-cream/40 border-2 border-peach rounded-md px-2 py-0.5 outline-none w-32"
+        maxLength={20}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => { setDraft(value); setEditing(true); }}
+      className="font-bold hover:bg-cream-deep rounded px-1 -mx-1 cursor-text"
+      title="클릭해서 이름 수정"
+    >
+      {value}
+    </button>
   );
 }
 

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 type Notification = {
   id: string;
-  kind: "new_member" | "new_comment" | "change_requested" | "restaurant_changed";
+  kind: "new_member" | "new_comment" | "change_requested" | "restaurant_changed" | "invited" | "left";
   partyId: string | null;
   actorName: string | null;
   actorSeed: string | null;
@@ -19,16 +19,24 @@ type Notification = {
 };
 
 const labels: Record<Notification["kind"], (n: Notification) => string> = {
-  new_member: (n) => `🍱 ${n.actorName ?? "누군가"} 님이 ${n.partyLabel ?? "파티"}에 합류했어요!`,
-  new_comment: (n) => `💬 ${n.actorName ?? "누군가"} 님이 ${n.partyLabel ?? "파티"}에 댓글을 남겼어요`,
+  new_member: (n) =>
+    `${n.partyLabel ?? "파티"} 파티에 ${n.actorName ?? "누군가"} 님이 합류했어요`,
+  new_comment: (n) =>
+    `${n.partyLabel ?? "파티"} 파티에 ${n.actorName ?? "누군가"} 님이 댓글을 남겼어요`,
   change_requested: (n) => {
     const newName = (n.payload as { new_name?: string } | null)?.new_name;
-    return `🔁 ${n.actorName ?? "누군가"} 님이 식당을 '${newName ?? "다른 곳"}'(으)로 바꾸자고 해요`;
+    return `${n.partyLabel ?? "파티"} 파티에 ${n.actorName ?? "누군가"} 님이 식당 변경을 제안했어요${newName ? ` ('${newName}')` : ""}`;
   },
   restaurant_changed: (n) => {
     const p = n.payload as { before_name?: string; after_name?: string } | null;
-    return `🏠 ${n.partyLabel ?? "파티"} 식당이 '${p?.before_name ?? "이전"}' → '${p?.after_name ?? "변경"}'(으)로 바뀌었어요`;
+    return `${n.partyLabel ?? "파티"} 파티의 식당이 '${p?.before_name ?? "이전"}' → '${p?.after_name ?? "변경"}' 로 바뀌었어요`;
   },
+  invited: (n) => {
+    const inviteeName = (n.payload as { invitee_name?: string } | null)?.invitee_name ?? "당신";
+    return `${n.actorName ?? "누군가"} 님이 ${inviteeName} 님을 ${n.partyLabel ?? "파티"} 파티에 초대했어요!`;
+  },
+  left: (n) =>
+    `${n.partyLabel ?? "파티"} 파티에서 ${n.actorName ?? "누군가"} 님이 떠났어요`,
 };
 
 function timeAgo(iso: string) {
@@ -65,6 +73,22 @@ export function NotificationBell() {
       });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
+  const acceptInvite = useMutation({
+    mutationFn: async ({ partyId, notifId }: { partyId: string; notifId: string }) => {
+      const res = await fetch(`/api/parties/${partyId}/join`, { method: "POST" });
+      if (!res.ok) throw new Error("참가 실패");
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: [notifId] }),
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.invalidateQueries({ queryKey: ["week"] });
+    },
   });
 
   const unread = data?.unread ?? 0;
@@ -122,27 +146,44 @@ export function NotificationBell() {
           <div className="max-h-96 overflow-y-auto">
             {items.length === 0 ? (
               <div className="px-4 py-10 text-center text-ink-soft text-sm">
-                🌱 아직 알림이 없어요
+                아직 알림이 없어요
               </div>
             ) : (
               items.map((n) => {
                 const text = labels[n.kind]?.(n) ?? "새 소식";
+                const showAccept = n.kind === "invited" && n.partyId && !n.readAt;
                 return (
-                  <Link
+                  <div
                     key={n.id}
-                    href={n.partyId ? `/party/${n.partyId}` : "#"}
-                    onClick={() => {
-                      if (!n.readAt) markRead.mutate([n.id]);
-                      setOpen(false);
-                    }}
                     className={cn(
-                      "block px-4 py-3 border-b border-cream-deep/60 hover:bg-cream/60 transition",
+                      "block px-4 py-3 border-b border-cream-deep/60 transition",
                       !n.readAt && "bg-butter/30",
                     )}
                   >
-                    <p className="text-sm text-ink leading-snug">{text}</p>
-                    <p className="text-[11px] text-ink-soft mt-1">{timeAgo(n.createdAt)}</p>
-                  </Link>
+                    <Link
+                      href={n.partyId ? `/party/${n.partyId}` : "#"}
+                      onClick={() => {
+                        if (!n.readAt) markRead.mutate([n.id]);
+                        setOpen(false);
+                      }}
+                      className="block hover:bg-cream/40 -mx-4 -my-3 px-4 py-3"
+                    >
+                      <p className="text-sm text-ink leading-snug">{text}</p>
+                      <p className="text-[11px] text-ink-soft mt-1">{timeAgo(n.createdAt)}</p>
+                    </Link>
+                    {showAccept && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          acceptInvite.mutate({ partyId: n.partyId!, notifId: n.id });
+                        }}
+                        disabled={acceptInvite.isPending}
+                        className="mt-2 inline-flex items-center gap-1 bg-peach text-ink hover:bg-peach-deep hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-[0_2px_0_0_rgba(74,74,107,0.15)] active:translate-y-0.5"
+                      >
+                        같이가기
+                      </button>
+                    )}
+                  </div>
                 );
               })
             )}

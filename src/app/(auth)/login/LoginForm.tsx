@@ -45,7 +45,7 @@ export function LoginForm() {
         <Input
           autoFocus
           autoComplete="username"
-          placeholder="발급받은 아이디"
+          placeholder="아이디"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
@@ -65,11 +65,11 @@ export function LoginForm() {
       </div>
       {error && (
         <p className="text-bubblegum text-sm font-medium text-center animate-wiggle">
-          🙀 {error}
+          {error}
         </p>
       )}
       <Button type="submit" disabled={loading} className="w-full mt-2" size="lg">
-        {loading ? "들어가는 중…" : "들어가기 🍙"}
+        {loading ? "로그인 중…" : "로그인"}
       </Button>
     </form>
   );

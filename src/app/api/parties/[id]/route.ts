@@ -10,18 +10,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const party = await prisma.party.findUnique({
     where: { id },
     include: {
-      host: { select: { id: true, displayName: true, avatarSeed: true } },
+      host: { select: { id: true, displayName: true, avatarSeed: true, avatarUrl: true } },
       participations: {
-        include: { user: { select: { id: true, displayName: true, avatarSeed: true } } },
+        include: { user: { select: { id: true, displayName: true, avatarSeed: true, avatarUrl: true } } },
         orderBy: { joinedAt: "asc" },
       },
       comments: {
-        include: { user: { select: { id: true, displayName: true, avatarSeed: true } } },
+        include: { user: { select: { id: true, displayName: true, avatarSeed: true, avatarUrl: true } } },
         orderBy: { createdAt: "asc" },
       },
       changeRequests: {
         where: { status: "pending" },
-        include: { requester: { select: { id: true, displayName: true, avatarSeed: true } } },
+        include: { requester: { select: { id: true, displayName: true, avatarSeed: true, avatarUrl: true } } },
         orderBy: { createdAt: "desc" },
       },
     },

@@ -19,6 +19,7 @@ create table profiles (
   display_name  text not null,
   password_hash text not null,
   avatar_seed   text not null,
+  avatar_url    text,
   can_host      boolean not null default false,
   is_admin      boolean not null default false,
   created_at    timestamptz not null default now()
@@ -64,7 +65,7 @@ create table restaurant_change_requests (
 create table notifications (
   id         uuid primary key default uuid_generate_v4(),
   user_id    uuid not null references profiles(id) on delete cascade,
-  kind       text not null check (kind in ('new_member','new_comment','change_requested','restaurant_changed')),
+  kind       text not null check (kind in ('new_member','new_comment','change_requested','restaurant_changed','invited','left')),
   party_id   text references parties(id) on delete cascade,
   actor_id   uuid references profiles(id) on delete set null,
   payload    jsonb,

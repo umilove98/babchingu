@@ -17,8 +17,8 @@ const quicksand = Quicksand({
 });
 
 export const metadata: Metadata = {
-  title: "밥친구 🍱",
-  description: "사내 점심 모임 — 같이 먹어요!",
+  title: "밥친구",
+  description: "사내 점심 모임",
 };
 
 export default function RootLayout({

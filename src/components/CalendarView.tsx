@@ -1,12 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, ExternalLink, MessageCircle, MapPin, Plus, Minus } from "lucide-react";
-import { AvatarStack, Avatar } from "@/components/ui/Avatar";
+import { ChevronLeft, ChevronRight, ExternalLink, MessageCircle, MapPin } from "lucide-react";
+import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import {
@@ -20,17 +19,18 @@ import {
 type Me = {
   id: string;
   displayName: string;
-  avatarSeed: string;
+  avatarSeed: string; avatarUrl?: string | null;
   canHost: boolean;
 };
 
-type Participant = { id: string; displayName: string; avatarSeed: string };
+type Participant = { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null };
 
 type WeekData = {
   week: string;
   monday: string;
   days: Array<{
     date: string;
+    holiday: string | null;
     dosirak: {
       id: string | null;
       proposedId: string;
@@ -127,11 +127,8 @@ export function CalendarView({ me, initialWeek }: { me: Me; initialWeek: string 
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-display font-bold text-3xl sm:text-4xl tracking-tight">
-            🍴 이번 주 점심
-          </h1>
-          <p className="text-ink-soft text-sm mt-1">
-            {fmtRange(monday)} · {week}
+          <p className="font-display font-bold text-2xl sm:text-3xl tracking-tight text-ink">
+            {fmtRange(monday)}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -180,7 +177,7 @@ export function CalendarView({ me, initialWeek }: { me: Me; initialWeek: string 
         <div className="flex justify-center pt-4">
           <Link href={`/register?week=${week}`}>
             <Button variant="primary" size="lg">
-              ✏️ 이번 주 외식 등록·수정
+              이번 주 외식 등록·수정
             </Button>
           </Link>
         </div>
@@ -202,53 +199,61 @@ function DayColumn({
 }) {
   const today = isToday(day.date);
   const dosirakJoined = day.dosirak.participants.some((p) => p.id === me.id);
+  const isHoliday = Boolean(day.holiday);
 
   return (
     <div
       className={cn(
         "bg-white rounded-2xl shadow-pop border-2 transition",
-        today ? "border-peach" : "border-white",
+        isHoliday ? "border-bubblegum/60" : today ? "border-peach" : "border-white",
       )}
     >
       <div
         className={cn(
           "px-4 py-2.5 rounded-t-[0.9rem] flex items-center justify-between",
-          today ? "bg-peach text-white" : "bg-cream-deep text-ink",
+          isHoliday ? "bg-bubblegum/40 text-ink" : today ? "bg-peach text-white" : "bg-cream-deep text-ink",
         )}
       >
-        <span className="font-display font-bold text-lg">
+        <span className={cn("font-display font-bold text-lg", isHoliday && "text-bubblegum")}>
           {formatKoreanDate(day.date)}
         </span>
-        {today && <span className="text-xs font-bold bg-white/40 px-2 py-0.5 rounded-full">오늘</span>}
+        {today && !isHoliday && (
+          <span className="text-xs font-bold bg-white/40 px-2 py-0.5 rounded-full">오늘</span>
+        )}
       </div>
 
       <div className="p-3 space-y-2.5">
-        {/* 도시락 슬롯 — 항상 표시 */}
-        <DosirakCard
-          participants={day.dosirak.participants}
-          joined={dosirakJoined}
-          partyId={day.dosirak.id}
-          onJoin={onJoinDosirak}
-          onLeave={onLeaveDosirak}
-          pending={pending}
-        />
-
-        {/* 외식 카드들 */}
-        {day.eatouts.length === 0 ? (
-          <div className="text-center text-xs text-ink-soft/70 py-2">
-            🍜 외식 일정 없음
+        {isHoliday ? (
+          <div className="text-center py-10">
+            <p className="font-display font-bold text-2xl text-bubblegum">휴일</p>
+            <p className="text-xs text-ink-soft mt-1">{day.holiday}</p>
           </div>
         ) : (
-          day.eatouts.map((p) => (
-            <EatoutCard
-              key={p.id}
-              party={p}
-              joined={p.participants.some((x) => x.id === me.id)}
-              onJoin={() => onJoinEatout(p.id)}
-              onLeave={() => onLeaveEatout(p.id)}
+          <>
+            {/* 도시락 슬롯 — 항상 표시 */}
+            <DosirakCard
+              participants={day.dosirak.participants}
+              joined={dosirakJoined}
+              partyId={day.dosirak.id}
+              onJoin={onJoinDosirak}
+              onLeave={onLeaveDosirak}
               pending={pending}
             />
-          ))
+
+            {/* 외식 카드들 */}
+            {day.eatouts.length === 0 ? null : (
+              day.eatouts.map((p) => (
+                <EatoutCard
+                  key={p.id}
+                  party={p}
+                  joined={p.participants.some((x) => x.id === me.id)}
+                  onJoin={() => onJoinEatout(p.id)}
+                  onLeave={() => onLeaveEatout(p.id)}
+                  pending={pending}
+                />
+              ))
+            )}
+          </>
         )}
       </div>
     </div>
@@ -272,17 +277,14 @@ function DosirakCard({
           href={partyId ? `/party/${partyId}` : "#"}
           className={cn("flex items-center gap-1.5", !partyId && "pointer-events-none")}
         >
-          <Image src="/img/dosirak.png" alt="" width={28} height={28} />
           <span className="font-bold text-sm">도시락</span>
         </Link>
         <JoinPill joined={joined} onJoin={onJoin} onLeave={onLeave} pending={pending} />
       </div>
       <div className="flex items-center justify-between">
-        {participants.length > 0 ? (
-          <AvatarStack seeds={participants.map((p) => p.avatarSeed)} />
-        ) : (
-          <span className="text-xs text-ink-soft/70">아직 아무도 없어요</span>
-        )}
+        {participants.length === 0 ? (
+          <span className="text-xs text-ink-soft/70">아무도 없어요 (쓸쓸)</span>
+        ) : <span />}
         <span className="text-xs text-ink-soft font-medium">
           {participants.length}명
         </span>
@@ -300,17 +302,17 @@ function EatoutCard({
   onLeave: () => void;
   pending: boolean;
 }) {
+  const tier = eatoutTier(party.participants.length);
   return (
-    <div className="bg-butter/50 rounded-xl p-3 border-2 border-butter transition hover:bg-butter/80">
+    <div className={cn("rounded-xl p-3 border-2 transition", tier.bg, tier.border, tier.hover)}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <Link href={`/party/${party.id}`} className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <Image src="/img/sikdang.png" alt="" width={28} height={28} />
             <span className="font-bold text-sm truncate">{party.restaurantName || "(이름 없음)"}</span>
           </div>
           {party.host && (
             <div className="flex items-center gap-1 text-[11px] text-ink-soft">
-              <Avatar seed={party.host.avatarSeed} size="sm" className="!w-4 !h-4 !ring-0" />
+              <Avatar seed={party.host.avatarSeed} url={party.host.avatarUrl} size="sm" className="!w-4 !h-4 !ring-0" />
               <span className="truncate">{party.host.displayName}</span>
             </div>
           )}
@@ -319,11 +321,9 @@ function EatoutCard({
       </div>
 
       <div className="flex items-center justify-between">
-        {party.participants.length > 0 ? (
-          <AvatarStack seeds={party.participants.map((p) => p.avatarSeed)} />
-        ) : (
+        {party.participants.length === 0 ? (
           <span className="text-[11px] text-ink-soft/70">참가자 모집 중</span>
-        )}
+        ) : <span />}
         <div className="flex items-center gap-2 text-[11px] text-ink-soft">
           {party.commentCount > 0 && (
             <span className="flex items-center gap-0.5">
@@ -339,10 +339,10 @@ function EatoutCard({
           href={party.mapUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 text-[11px] inline-flex items-center gap-1 text-ink-soft hover:text-ink"
+          className="mt-2 text-sm font-semibold inline-flex items-center gap-1 text-ink-soft hover:text-ink"
           onClick={(e) => e.stopPropagation()}
         >
-          <MapPin className="w-3 h-3" /> 지도 <ExternalLink className="w-2.5 h-2.5" />
+          <MapPin className="w-4 h-4" /> 위치보기 <ExternalLink className="w-3 h-3" />
         </a>
       )}
     </div>
@@ -362,17 +362,26 @@ function JoinPill({
       onClick={joined ? onLeave : onJoin}
       disabled={pending}
       className={cn(
-        "h-7 px-3 rounded-lg text-[11px] font-bold transition active:scale-95 inline-flex items-center gap-1",
+        "h-7 px-3 rounded-lg text-[11px] font-bold transition active:scale-95 inline-flex items-center",
         joined
           ? "bg-white text-ink-soft border-2 border-ink/15 hover:border-bubblegum hover:text-bubblegum"
           : "bg-peach text-ink hover:bg-peach-deep hover:text-white shadow-[0_2px_0_0_rgba(74,74,107,0.15)]",
         pending && "opacity-50",
       )}
     >
-      {joined ? <Minus className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
       {joined ? "취소" : "참가"}
     </button>
   );
+}
+
+function eatoutTier(count: number) {
+  if (count === 0) {
+    return { bg: "bg-butter/50", border: "border-butter", hover: "hover:bg-butter/80" };
+  }
+  if (count <= 4) {
+    return { bg: "bg-sky/40", border: "border-sky", hover: "hover:bg-sky/70" };
+  }
+  return { bg: "bg-bubblegum/30", border: "border-bubblegum", hover: "hover:bg-bubblegum/50" };
 }
 
 function SkeletonCalendar() {

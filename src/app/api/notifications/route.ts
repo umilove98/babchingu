@@ -14,7 +14,7 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     take: 20,
     include: {
-      actor: { select: { displayName: true, avatarSeed: true } },
+      actor: { select: { displayName: true, avatarSeed: true, avatarUrl: true } },
       party: { select: { kind: true, partyDate: true, restaurantName: true } },
     },
   });
@@ -24,7 +24,7 @@ export async function GET() {
 
   const items = rows.map((n) => ({
     id: n.id,
-    kind: n.kind as "new_member" | "new_comment" | "change_requested" | "restaurant_changed",
+    kind: n.kind as "new_member" | "new_comment" | "change_requested" | "restaurant_changed" | "invited" | "left",
     partyId: n.partyId,
     actorName: n.actor?.displayName ?? null,
     actorSeed: n.actor?.avatarSeed ?? null,

@@ -20,7 +20,7 @@ export async function getMeOrRedirect() {
   const me = await prisma.profile.findUnique({
     where: { id: session.userId },
     select: {
-      id: true, username: true, displayName: true, avatarSeed: true,
+      id: true, username: true, displayName: true, avatarSeed: true, avatarUrl: true,
       canHost: true, isAdmin: true,
     },
   });
@@ -38,7 +38,7 @@ export async function getMe() {
   return prisma.profile.findUnique({
     where: { id: session.userId },
     select: {
-      id: true, username: true, displayName: true, avatarSeed: true,
+      id: true, username: true, displayName: true, avatarSeed: true, avatarUrl: true,
       canHost: true, isAdmin: true,
     },
   });
@@ -55,7 +55,7 @@ export async function requireMe() {
   const me = await prisma.profile.findUnique({
     where: { id: session.userId },
     select: {
-      id: true, username: true, displayName: true, avatarSeed: true,
+      id: true, username: true, displayName: true, avatarSeed: true, avatarUrl: true,
       canHost: true, isAdmin: true,
     },
   });

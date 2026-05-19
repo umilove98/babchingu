@@ -1,13 +1,16 @@
-// 밥친구 — 로컬 개발용 Prisma 스키마 (SQLite)
-// 향후 Supabase Postgres 이전 시: provider 를 "postgresql" 로 변경 + db/postgres-schema.sql 의 RLS·트리거 적용
+// 밥친구 — Supabase Postgres
+// DATABASE_URL: Transaction pooler (port 6543, ?pgbouncer=true)
+// DIRECT_URL: Direct connection (port 5432) — Prisma migrate 용
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Profile {
@@ -15,7 +18,8 @@ model Profile {
   username     String   @unique
   displayName  String
   passwordHash String
-  avatarSeed   String   // DiceBear 시드
+  avatarSeed   String   // DiceBear 시드 (avatarUrl 없을 때 폴백)
+  avatarUrl    String?  // 업로드한 아바타 이미지 경로
   canHost      Boolean  @default(false)
   isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())

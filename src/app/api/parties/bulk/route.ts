@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireMe } from "@/lib/auth";
 import { notifyRestaurantChanged } from "@/lib/notify";
+import { isHoliday } from "@/lib/holidays";
 
 const itemSchema = z.object({
   id: z.string().optional(),                  // 기존 파티 갱신
@@ -54,6 +55,14 @@ export async function PUT(req: Request) {
   }
 
   const { items, deletedIds = [] } = parsed.data;
+
+  const holidayHit = items.find((i) => isHoliday(i.partyDate));
+  if (holidayHit) {
+    return NextResponse.json(
+      { error: `${holidayHit.partyDate} 은(는) 휴일이라 외식 일정을 등록할 수 없어요` },
+      { status: 400 },
+    );
+  }
 
   // 갱신용으로 기존 파티 미리 조회 (식당명 변경 알림용)
   const updateIds = items.filter((i) => i.id).map((i) => i.id!) ;

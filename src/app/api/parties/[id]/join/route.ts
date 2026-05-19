@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireMe } from "@/lib/auth";
-import { notifyNewMember } from "@/lib/notify";
+import { enforceSingleDayJoin, notifyLeft, notifyNewMember } from "@/lib/notify";
 
 export async function POST(
   _req: Request,
@@ -20,6 +20,9 @@ export async function POST(
   });
   if (existing) return NextResponse.json({ ok: true, alreadyJoined: true });
 
+  // 같은 날 다른 파티에 이미 참여 중이면 자동 탈퇴 (떠남 알림 발송)
+  await enforceSingleDayJoin(me.id, party.partyDate, id);
+
   await prisma.participation.create({
     data: { partyId: id, userId: me.id },
   });
@@ -37,8 +40,9 @@ export async function DELETE(
   catch { return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }); }
 
   const { id } = await ctx.params;
-  await prisma.participation.deleteMany({
+  const removed = await prisma.participation.deleteMany({
     where: { partyId: id, userId: me.id },
   });
+  if (removed.count > 0) await notifyLeft(id, me.id);
   return NextResponse.json({ ok: true });
 }

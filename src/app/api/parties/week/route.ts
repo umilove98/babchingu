@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireMe } from "@/lib/auth";
 import { daysFrom, dosirakIdFor, mondayOfIsoWeek, currentIsoWeek } from "@/lib/date";
+import { holidayOf } from "@/lib/holidays";
 
 export async function GET(req: Request) {
   try { await requireMe(); }
@@ -18,9 +19,9 @@ export async function GET(req: Request) {
   const parties = await prisma.party.findMany({
     where: { partyDate: { in: days } },
     include: {
-      host: { select: { id: true, displayName: true, avatarSeed: true } },
+      host: { select: { id: true, displayName: true, avatarSeed: true, avatarUrl: true } },
       participations: {
-        include: { user: { select: { id: true, displayName: true, avatarSeed: true } } },
+        include: { user: { select: { id: true, displayName: true, avatarSeed: true, avatarUrl: true } } },
         orderBy: { joinedAt: "asc" },
       },
       _count: { select: { comments: true } },
@@ -35,11 +36,13 @@ export async function GET(req: Request) {
   }
 
   const result = days.map((date) => {
+    const holiday = holidayOf(date);
     const list = byDay.get(date) ?? [];
     const dos = list.find((p) => p.kind === "dosirak");
     const eatouts = list.filter((p) => p.kind === "eatout");
     return {
       date,
+      holiday,
       dosirak: {
         id: dos?.id ?? null,
         participants: dos?.participations.map((p) => p.user) ?? [],

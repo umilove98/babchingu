@@ -1,18 +1,17 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { ChevronLeft, ExternalLink, MapPin, Trash2 } from "lucide-react";
+import { ChevronLeft, ExternalLink, MapPin, Send, Trash2, UserPlus, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 import { formatKoreanDate } from "@/lib/date";
 
-type Me = { id: string; displayName: string; avatarSeed: string; canHost: boolean };
-type Person = { id: string; displayName: string; avatarSeed: string };
+type Me = { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null; canHost: boolean };
+type Person = { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null };
 type Comment = { id: string; body: string; createdAt: string; user: Person };
 type ChangeRequest = {
   id: string;
@@ -88,18 +87,12 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
         )}
       >
         <p className="text-sm text-ink-soft font-medium mb-1">{formatKoreanDate(data.partyDate)}</p>
-        <h1 className="font-display font-bold text-3xl flex items-center gap-3">
-          <Image
-            src={data.kind === "dosirak" ? "/img/dosirak.png" : "/img/sikdang.png"}
-            alt=""
-            width={56}
-            height={56}
-          />
-          <span>{data.kind === "dosirak" ? "도시락" : (data.restaurantName ?? "외식")}</span>
+        <h1 className="font-display font-bold text-3xl">
+          {data.kind === "dosirak" ? "도시락" : (data.restaurantName ?? "외식")}
         </h1>
         {data.kind === "eatout" && data.host && (
           <div className="flex items-center gap-2 mt-3 text-sm">
-            <Avatar seed={data.host.avatarSeed} size="sm" />
+            <Avatar seed={data.host.avatarSeed} url={data.host.avatarUrl} size="sm" />
             <span className="text-ink-soft">파티장 <strong className="text-ink">{data.host.displayName}</strong></span>
           </div>
         )}
@@ -108,9 +101,9 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
             href={data.mapUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-ink-soft hover:text-ink"
+            className="mt-3 inline-flex items-center gap-1.5 text-base font-semibold text-ink-soft hover:text-ink"
           >
-            <MapPin className="w-4 h-4" /> 네이버 지도 열기 <ExternalLink className="w-3 h-3" />
+            <MapPin className="w-5 h-5" /> 위치보기 <ExternalLink className="w-4 h-4" />
           </a>
         )}
 
@@ -123,20 +116,25 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
               ) : (
                 data.participants.map((p) => (
                   <div key={p.id} className="flex items-center gap-1.5 bg-white/70 pl-1 pr-3 py-1 rounded-full">
-                    <Avatar seed={p.avatarSeed} size="sm" />
+                    <Avatar seed={p.avatarSeed} url={p.avatarUrl} size="sm" />
                     <span className="text-xs font-semibold">{p.displayName}</span>
                   </div>
                 ))
               )}
             </div>
           </div>
-          <Button
-            variant={joined ? "outline" : "primary"}
-            onClick={() => (joined ? leave.mutate() : join.mutate())}
-            disabled={join.isPending || leave.isPending}
-          >
-            {joined ? "참가 취소" : "나도 갈게요 ✋"}
-          </Button>
+          <div className="flex flex-col gap-2 items-end">
+            <Button
+              variant={joined ? "outline" : "primary"}
+              onClick={() => (joined ? leave.mutate() : join.mutate())}
+              disabled={join.isPending || leave.isPending}
+            >
+              {joined ? "참가 취소" : "나도 참가"}
+            </Button>
+            {(joined || isHost) && (
+              <InviteButton partyId={partyId} />
+            )}
+          </div>
         </div>
       </header>
 
@@ -162,9 +160,6 @@ function EmptyDosirak({ partyId, onCreate }: { partyId: string; onCreate: () => 
   const date = m?.[1];
   return (
     <div className="max-w-md mx-auto text-center py-20 space-y-6">
-      <div className="inline-block animate-bob">
-        <Image src="/img/dosirak.png" alt="" width={160} height={160} priority />
-      </div>
       <div>
         <h1 className="font-display font-bold text-3xl">
           {date ? formatKoreanDate(date) : ""} 도시락
@@ -172,7 +167,7 @@ function EmptyDosirak({ partyId, onCreate }: { partyId: string; onCreate: () => 
         <p className="text-ink-soft mt-2 text-sm">아직 참가자가 없어요. 첫 주자가 되어보세요!</p>
       </div>
       <Button size="lg" onClick={onCreate}>
-        🍙 첫 참가자 되기
+        첫 참가자 되기
       </Button>
       <p className="text-xs text-ink-soft">
         <Link href="/" className="hover:underline">← 캘린더로 돌아가기</Link>
@@ -216,14 +211,14 @@ function CommentsSection({
 
   return (
     <section className="bg-white rounded-2xl shadow-pop border-2 border-white p-5">
-      <h2 className="font-display font-bold text-xl mb-4">💬 한마디</h2>
+      <h2 className="font-display font-bold text-xl mb-4">한마디</h2>
       <ul className="space-y-3 mb-4">
         {comments.length === 0 ? (
           <p className="text-sm text-ink-soft/70 text-center py-6">아직 댓글이 없어요</p>
         ) : (
           comments.map((c) => (
             <li key={c.id} className="flex gap-2.5 items-start">
-              <Avatar seed={c.user.avatarSeed} size="sm" />
+              <Avatar seed={c.user.avatarSeed} url={c.user.avatarUrl} size="sm" />
               <div className="flex-1 bg-cream/60 rounded-xl px-3.5 py-2.5 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <strong className="text-sm">{c.user.displayName}</strong>
@@ -257,8 +252,13 @@ function CommentsSection({
           onChange={(e) => setBody(e.target.value)}
           maxLength={500}
         />
-        <Button type="submit" disabled={!body.trim() || add.isPending}>
-          올리기
+        <Button
+          type="submit"
+          disabled={!body.trim() || add.isPending}
+          aria-label="댓글 보내기"
+          className="!h-12 !w-12 !px-0 !rounded-xl"
+        >
+          <Send className="w-4 h-4" />
         </Button>
       </form>
     </section>
@@ -327,7 +327,7 @@ function ChangeRequestsSection({
   return (
     <section className="bg-white rounded-2xl shadow-pop border-2 border-white p-5">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <h2 className="font-display font-bold text-xl">🔁 식당 변경 제안</h2>
+        <h2 className="font-display font-bold text-xl">식당 변경 제안</h2>
         {isParticipant && !isHost && (
           <Button variant="soft" size="sm" onClick={() => setOpen((v) => !v)}>
             {open ? "닫기" : "제안하기"}
@@ -360,7 +360,7 @@ function ChangeRequestsSection({
             onChange={(e) => setReason(e.target.value)}
           />
           <Button type="submit" disabled={!newName.trim() || propose.isPending}>
-            제안 보내기 ✉️
+            제안 보내기
           </Button>
           {propose.error && <p className="text-bubblegum text-xs">{propose.error.message}</p>}
         </form>
@@ -373,7 +373,7 @@ function ChangeRequestsSection({
           {pendingRequests.map((r) => (
             <li key={r.id} className="bg-lavender/20 rounded-xl p-3 border border-lavender/40">
               <div className="flex items-center gap-2 text-sm">
-                <Avatar seed={r.requester.avatarSeed} size="sm" />
+                <Avatar seed={r.requester.avatarSeed} url={r.requester.avatarUrl} size="sm" />
                 <span><strong>{r.requester.displayName}</strong> 님이 제안</span>
               </div>
               <p className="mt-2 text-[15px]">
@@ -385,7 +385,7 @@ function ChangeRequestsSection({
                 {isHost && (
                   <>
                     <Button size="sm" onClick={() => decide.mutate({ id: r.id, action: "approve" })}>
-                      승인 ✓
+                      승인
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => decide.mutate({ id: r.id, action: "reject" })}>
                       거절
@@ -417,4 +417,126 @@ function timeAgo(iso: string) {
   if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
   return `${Math.floor(diff / 86400)}일 전`;
+}
+
+function InviteButton({ partyId }: { partyId: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-ink bg-white/70 hover:bg-white rounded-full px-3 py-1.5"
+      >
+        <UserPlus className="w-3.5 h-3.5" /> 초대하기
+      </button>
+      {open && <InviteModal partyId={partyId} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+function InviteModal({ partyId, onClose }: { partyId: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sent, setSent] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["invitable", partyId],
+    queryFn: async () => {
+      const res = await fetch(`/api/parties/${partyId}/invitable`);
+      if (!res.ok) throw new Error("로드 실패");
+      return res.json() as Promise<{ users: { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null }[] }>;
+    },
+  });
+
+  const send = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/parties/${partyId}/invite`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userIds: [...selected] }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "초대 실패");
+    },
+    onSuccess: () => {
+      setSent(true);
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      setTimeout(onClose, 1200);
+    },
+  });
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-pop-lg border-2 border-white w-full max-w-md max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-deep">
+          <h2 className="font-display font-bold text-xl">초대하기</h2>
+          <button onClick={onClose} className="text-ink-soft hover:text-ink p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <p className="p-10 text-center text-ink-soft text-sm">불러오는 중…</p>
+          ) : data?.users.length === 0 ? (
+            <p className="p-10 text-center text-ink-soft text-sm">초대할 수 있는 사람이 없어요</p>
+          ) : (
+            <ul className="divide-y divide-cream-deep">
+              {data?.users.map((u) => {
+                const on = selected.has(u.id);
+                return (
+                  <li key={u.id}>
+                    <button
+                      onClick={() => toggle(u.id)}
+                      className={cn(
+                        "w-full text-left px-5 py-3 flex items-center gap-3 hover:bg-cream/60 transition",
+                        on && "bg-sky/30",
+                      )}
+                    >
+                      <Avatar seed={u.avatarSeed} url={u.avatarUrl} size="sm" />
+                      <span className="flex-1 font-semibold text-sm">{u.displayName}</span>
+                      <span
+                        className={cn(
+                          "w-5 h-5 rounded-md border-2 flex items-center justify-center",
+                          on ? "bg-peach-deep border-peach-deep text-white" : "border-ink/20",
+                        )}
+                      >
+                        {on && "✓"}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+        <div className="px-5 py-3 border-t border-cream-deep flex items-center justify-between gap-2">
+          <span className="text-sm text-ink-soft">
+            {sent ? "초대를 보냈어요!" : `${selected.size}명 선택`}
+          </span>
+          <Button
+            onClick={() => send.mutate()}
+            disabled={selected.size === 0 || send.isPending || sent}
+            size="sm"
+          >
+            {send.isPending ? "보내는 중…" : sent ? "완료" : "초대 보내기"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
