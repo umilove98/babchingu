@@ -334,7 +334,7 @@ function DosirakCard({
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
-          <span className="font-bold text-sm">도시락</span>
+          <span className="font-bold text-base">도시락</span>
         </div>
         <div onClick={(e) => e.stopPropagation()}>
           <JoinPill joined={joined} onJoin={onJoin} onLeave={onLeave} pending={pending} />
@@ -344,7 +344,7 @@ function DosirakCard({
         {participants.length === 0 ? (
           <span className="text-xs text-ink-soft/70">아무도 없어요 (쓸쓸)</span>
         ) : <span />}
-        <span className="text-xs text-ink-soft font-medium">
+        <span className="text-sm text-ink font-semibold">
           {participants.length}명
         </span>
       </div>
@@ -400,10 +400,10 @@ function EatoutCard({
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="font-bold text-sm truncate">{party.restaurantName || "(이름 없음)"}</span>
+            <span className="font-bold text-base truncate">{party.restaurantName || "(이름 없음)"}</span>
           </div>
           {party.host && (
-            <div className="flex items-center gap-1 text-[11px] text-ink-soft">
+            <div className="flex items-center gap-1 text-xs text-ink-soft">
               <Avatar seed={party.host.avatarSeed} url={party.host.avatarUrl} size="sm" className="!w-4 !h-4 !ring-0" />
               <span className="truncate">{party.host.displayName}</span>
             </div>
@@ -416,15 +416,15 @@ function EatoutCard({
 
       <div className="flex items-center justify-between">
         {party.participants.length === 0 ? (
-          <span className="text-[11px] text-ink-soft/70">참가자 모집 중</span>
+          <span className="text-xs text-ink-soft/70">참가자 모집 중</span>
         ) : <span />}
-        <div className="flex items-center gap-2 text-[11px] text-ink-soft">
+        <div className="flex items-center gap-2 text-sm text-ink">
           {party.commentCount > 0 && (
-            <span className="flex items-center gap-0.5">
-              <MessageCircle className="w-3 h-3" /> {party.commentCount}
+            <span className="flex items-center gap-0.5 text-ink-soft">
+              <MessageCircle className="w-3.5 h-3.5" /> {party.commentCount}
             </span>
           )}
-          <span>{party.participants.length}명</span>
+          <span className="font-semibold">{party.participants.length}명</span>
         </div>
       </div>
 
@@ -433,10 +433,10 @@ function EatoutCard({
           href={party.mapUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 text-sm font-semibold inline-flex items-center gap-1 text-ink-soft hover:text-ink"
+          className="mt-2 text-xs font-medium inline-flex items-center gap-1 text-ink-soft hover:text-ink"
           onClick={(e) => e.stopPropagation()}
         >
-          <MapPin className="w-4 h-4" /> 위치보기 <ExternalLink className="w-3 h-3" />
+          <MapPin className="w-3 h-3" /> 위치보기 <ExternalLink className="w-2.5 h-2.5" />
         </a>
       )}
     </div>
