@@ -127,7 +127,7 @@ export function CalendarView({ me, initialWeek }: { me: Me; initialWeek: string 
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <p className="font-display font-bold text-2xl sm:text-3xl tracking-tight text-ink">
+          <p className="font-semibold text-base sm:text-lg tracking-tight text-ink">
             {fmtRange(monday)}
           </p>
         </div>
@@ -210,7 +210,7 @@ function DayColumn({
     >
       <div
         className={cn(
-          "px-4 py-2.5 rounded-t-[0.9rem] flex items-center justify-between",
+          "px-4 py-2.5 rounded-t-[calc(0.625rem-2px)] flex items-center justify-between",
           isHoliday ? "bg-bubblegum/40 text-ink" : today ? "bg-peach text-white" : "bg-cream-deep text-ink",
         )}
       >
@@ -271,7 +271,7 @@ function DosirakCard({
   pending: boolean;
 }) {
   return (
-    <div className="bg-cream-deep rounded-xl p-3 border border-butter-deep transition hover:bg-butter">
+    <div className="bg-butter rounded-xl p-3 border border-butter-deep transition hover:bg-cream-deep">
       <div className="flex items-center justify-between mb-2">
         <Link
           href={partyId ? `/party/${partyId}` : "#"}
@@ -376,12 +376,12 @@ function JoinPill({
 
 function eatoutTier(count: number) {
   if (count === 0) {
-    return { bg: "bg-butter", border: "border-butter-deep", hover: "hover:bg-butter-deep" };
+    return { bg: "bg-cream", border: "border-butter-deep", hover: "hover:bg-cream-deep" };
   }
   if (count <= 4) {
-    return { bg: "bg-butter-deep", border: "border-peach/40", hover: "hover:bg-mint" };
+    return { bg: "bg-cream", border: "border-ink-soft", hover: "hover:bg-cream-deep" };
   }
-  return { bg: "bg-mint", border: "border-peach", hover: "hover:bg-butter-deep" };
+  return { bg: "bg-cream", border: "border-ink", hover: "hover:bg-cream-deep" };
 }
 
 function SkeletonCalendar() {

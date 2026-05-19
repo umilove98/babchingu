@@ -1,29 +1,29 @@
 @import "tailwindcss";
 
 @theme {
-  /* 컬러 — 화이트 & 그린 톤 */
+  /* 컬러 — 화이트 & 블랙 톤 (모노크롬) */
   --color-cream: #FFFFFF;         /* 페이지 배경 (흰색) */
-  --color-cream-deep: #F4F5F4;    /* 보조 표면 (살짝 차가운 그레이) */
+  --color-cream-deep: #F4F4F5;    /* 보조 표면 (zinc 100) */
 
-  --color-butter: #F0FDF4;        /* 카드 배경 - 그린 50 */
-  --color-butter-deep: #DCFCE7;   /* 보더/hover - 그린 100 */
+  --color-butter: #FAFAFA;        /* 카드 배경 (zinc 50) */
+  --color-butter-deep: #E4E4E7;   /* 보더/hover (zinc 200) */
 
-  --color-mint: #ECFDF5;          /* 보조 그린 - 에메랄드 50 */
-  --color-mint-deep: #10B981;     /* 에메랄드 500 */
+  --color-mint: #F4F4F5;          /* 보조 (zinc 100) */
+  --color-mint-deep: #71717A;     /* zinc 500 */
 
-  --color-peach: #16A34A;         /* PRIMARY GREEN (그린 600) */
-  --color-peach-deep: #15803D;    /* hover (그린 700) */
+  --color-peach: #18181B;         /* PRIMARY BLACK (zinc 900) */
+  --color-peach-deep: #000000;    /* hover (pure black) */
 
-  --color-lavender: #F0FDF4;      /* 보조 톤 (그린 50) */
-  --color-lavender-deep: #16A34A;
+  --color-lavender: #F4F4F5;      /* 보조 (zinc 100) */
+  --color-lavender-deep: #52525B; /* zinc 600 */
 
-  --color-sky: #ECFDFA;           /* 활성·선택 강조 (옅은 청록) */
-  --color-sky-deep: #14B8A6;      /* 틸 500 */
+  --color-sky: #F4F4F5;           /* 활성·선택 (zinc 100) */
+  --color-sky-deep: #18181B;      /* 강조 시 다크 */
 
   --color-bubblegum: #DC2626;     /* 에러·삭제 (레드 600) */
 
-  --color-ink: #0F172A;           /* 본문 (슬레이트 900) */
-  --color-ink-soft: #64748B;      /* 보조 텍스트 (슬레이트 500) */
+  --color-ink: #18181B;           /* 본문 (zinc 900) */
+  --color-ink-soft: #71717A;      /* 보조 텍스트 (zinc 500) */
 
   /* 폰트 — Pretendard 단일 */
   --font-sans: "Pretendard Variable", Pretendard, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
