@@ -6,21 +6,21 @@ type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-peach text-ink hover:bg-peach-deep hover:text-white shadow-[0_4px_0_0_rgba(74,74,107,0.18)] active:translate-y-1 active:shadow-[0_0_0_0_rgba(74,74,107,0.18)]",
+    "bg-peach text-white hover:bg-peach-deep active:scale-[0.98]",
   soft:
-    "bg-cream-deep text-ink hover:bg-butter shadow-[0_3px_0_0_rgba(74,74,107,0.12)] active:translate-y-0.5 active:shadow-[0_1px_0_0_rgba(74,74,107,0.12)]",
+    "bg-butter text-peach-deep hover:bg-butter-deep active:scale-[0.98]",
   ghost:
-    "bg-transparent text-ink hover:bg-cream-deep/80",
+    "bg-transparent text-ink-soft hover:text-ink hover:bg-cream-deep",
   danger:
-    "bg-bubblegum text-white hover:opacity-90 shadow-[0_3px_0_0_rgba(74,74,107,0.18)] active:translate-y-0.5 active:shadow-[0_1px_0_0_rgba(74,74,107,0.18)]",
+    "bg-bubblegum text-white hover:opacity-90 active:scale-[0.98]",
   outline:
-    "bg-white text-ink border-2 border-ink/15 hover:border-ink/30",
+    "bg-white text-ink border border-ink/15 hover:bg-cream-deep hover:border-ink/30",
 };
 
 const sizes: Record<Size, string> = {
-  sm: "h-9 px-4 text-sm rounded-xl",
-  md: "h-11 px-5 text-[15px] rounded-xl",
-  lg: "h-14 px-7 text-base rounded-2xl",
+  sm: "h-8 px-3 text-[13px] rounded-lg",
+  md: "h-10 px-4 text-sm rounded-lg",
+  lg: "h-12 px-5 text-[15px] rounded-xl",
 };
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

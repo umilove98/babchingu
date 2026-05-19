@@ -271,7 +271,7 @@ function DosirakCard({
   pending: boolean;
 }) {
   return (
-    <div className="bg-mint/40 rounded-xl p-3 border-2 border-mint/80 transition hover:bg-mint/60">
+    <div className="bg-cream-deep rounded-xl p-3 border border-butter-deep transition hover:bg-butter">
       <div className="flex items-center justify-between mb-2">
         <Link
           href={partyId ? `/party/${partyId}` : "#"}
@@ -376,12 +376,12 @@ function JoinPill({
 
 function eatoutTier(count: number) {
   if (count === 0) {
-    return { bg: "bg-butter/50", border: "border-butter", hover: "hover:bg-butter/80" };
+    return { bg: "bg-butter", border: "border-butter-deep", hover: "hover:bg-butter-deep" };
   }
   if (count <= 4) {
-    return { bg: "bg-sky/40", border: "border-sky", hover: "hover:bg-sky/70" };
+    return { bg: "bg-butter-deep", border: "border-peach/40", hover: "hover:bg-mint" };
   }
-  return { bg: "bg-bubblegum/30", border: "border-bubblegum", hover: "hover:bg-bubblegum/50" };
+  return { bg: "bg-mint", border: "border-peach", hover: "hover:bg-butter-deep" };
 }
 
 function SkeletonCalendar() {

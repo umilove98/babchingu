@@ -9,9 +9,9 @@ export const Input = forwardRef<HTMLInputElement, Props>(
       ref={ref}
       {...rest}
       className={cn(
-        "h-12 w-full rounded-xl border-2 bg-white px-4 text-[15px] text-ink placeholder:text-ink-soft/70 outline-none transition-all",
-        "focus:border-peach-deep focus:bg-cream/30",
-        error ? "border-bubblegum" : "border-ink/10",
+        "h-10 w-full rounded-lg border bg-white px-3 text-sm text-ink placeholder:text-ink-soft/60 outline-none transition-colors",
+        "focus:border-ink/60",
+        error ? "border-bubblegum" : "border-ink/15",
         className,
       )}
     />
