@@ -66,6 +66,11 @@ export function isToday(s: string): boolean {
   return s === toKstDateString(new Date());
 }
 
+/** 'YYYY-MM-DD' 가 오늘 이전인지 (KST). 사전적 비교만으로 정확 (YYYY-MM-DD 포맷 특성). */
+export function isPast(s: string): boolean {
+  return s < toKstDateString(new Date());
+}
+
 /** 'YYYY-MM-DD' → 'M월 D일 (요일)'. */
 export function formatKoreanDate(s: string): string {
   const [y, m, d] = s.split("-").map(Number);

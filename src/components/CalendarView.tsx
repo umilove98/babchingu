@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   currentIsoWeek,
   formatKoreanDate,
+  isPast,
   isToday,
   mondayOfIsoWeek,
   shiftIsoWeek,
@@ -198,6 +199,7 @@ function DayColumn({
   pending: boolean;
 }) {
   const today = isToday(day.date);
+  const past = isPast(day.date);
   const dosirakJoined = day.dosirak.participants.some((p) => p.id === me.id);
   const isHoliday = Boolean(day.holiday);
 
@@ -206,6 +208,7 @@ function DayColumn({
       className={cn(
         "bg-white rounded-2xl shadow-pop border-2 transition",
         isHoliday ? "border-bubblegum/60" : today ? "border-peach" : "border-white",
+        past && "opacity-60 saturate-0",
       )}
     >
       <div
