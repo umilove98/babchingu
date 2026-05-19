@@ -289,7 +289,7 @@ function DosirakCard({
         }
       }}
       className={cn(
-        "bg-butter rounded-xl p-3 border border-butter-deep transition hover:bg-cream-deep",
+        "bg-cream-deep rounded-xl p-3 border border-butter-deep transition hover:bg-butter",
         partyId && "cursor-pointer",
       )}
     >
@@ -416,12 +416,12 @@ function JoinPill({
 
 function eatoutTier(count: number) {
   if (count === 0) {
-    return { bg: "bg-cream", border: "border-butter-deep", hover: "hover:bg-cream-deep" };
+    return { bg: "bg-butter", border: "border-butter-deep", hover: "hover:bg-butter-deep" };
   }
   if (count <= 4) {
-    return { bg: "bg-cream", border: "border-ink-soft", hover: "hover:bg-cream-deep" };
+    return { bg: "bg-butter-deep", border: "border-peach/40", hover: "hover:bg-mint/60" };
   }
-  return { bg: "bg-cream", border: "border-ink", hover: "hover:bg-cream-deep" };
+  return { bg: "bg-mint", border: "border-peach", hover: "hover:bg-mint/80" };
 }
 
 function SkeletonCalendar() {
