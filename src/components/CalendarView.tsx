@@ -110,6 +110,19 @@ export function CalendarView({ me, initialWeek }: { me: Me; initialWeek: string 
     onSuccess: () => qc.invalidateQueries({ queryKey: ["week", week] }),
   });
 
+  const movePartyDate = useMutation({
+    mutationFn: async ({ partyId, newDate }: { partyId: string; newDate: string }) => {
+      const res = await fetch(`/api/parties/${partyId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ partyDate: newDate }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "이동 실패");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["week", week] }),
+  });
+
   function goWeek(delta: number) {
     const next = shiftIsoWeek(week, delta);
     setWeek(next);
@@ -168,7 +181,10 @@ export function CalendarView({ me, initialWeek }: { me: Me; initialWeek: string 
               onLeaveDosirak={() => leaveDosirak.mutate(day.date)}
               onJoinEatout={(id) => joinEatout.mutate(id)}
               onLeaveEatout={(id) => leaveEatout.mutate(id)}
-              pending={joinEatout.isPending || leaveEatout.isPending || joinDosirak.isPending || leaveDosirak.isPending}
+              onDropParty={(partyId) =>
+                movePartyDate.mutate({ partyId, newDate: day.date })
+              }
+              pending={joinEatout.isPending || leaveEatout.isPending || joinDosirak.isPending || leaveDosirak.isPending || movePartyDate.isPending}
             />
           ))}
         </div>
@@ -188,7 +204,7 @@ export function CalendarView({ me, initialWeek }: { me: Me; initialWeek: string 
 }
 
 function DayColumn({
-  day, me, onJoinDosirak, onLeaveDosirak, onJoinEatout, onLeaveEatout, pending,
+  day, me, onJoinDosirak, onLeaveDosirak, onJoinEatout, onLeaveEatout, onDropParty, pending,
 }: {
   day: WeekData["days"][number];
   me: Me;
@@ -196,19 +212,40 @@ function DayColumn({
   onLeaveDosirak: () => void;
   onJoinEatout: (id: string) => void;
   onLeaveEatout: (id: string) => void;
+  onDropParty: (partyId: string) => void;
   pending: boolean;
 }) {
   const today = isToday(day.date);
   const past = isPast(day.date);
   const dosirakJoined = day.dosirak.participants.some((p) => p.id === me.id);
   const isHoliday = Boolean(day.holiday);
+  const [dragOver, setDragOver] = useState(false);
 
   return (
     <div
+      onDragOver={(e) => {
+        if (isHoliday) return;
+        const partyId = e.dataTransfer.types.includes("application/x-party-id");
+        if (!partyId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (!dragOver) setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        setDragOver(false);
+        if (isHoliday) return;
+        const partyId = e.dataTransfer.getData("application/x-party-id");
+        const srcDate = e.dataTransfer.getData("application/x-party-date");
+        if (!partyId || srcDate === day.date) return;
+        e.preventDefault();
+        onDropParty(partyId);
+      }}
       className={cn(
         "bg-white rounded-2xl shadow-pop border-2 transition",
         isHoliday ? "border-bubblegum/60" : today ? "border-peach" : "border-white",
         past && "opacity-60 saturate-0",
+        dragOver && !isHoliday && "ring-2 ring-peach ring-offset-2",
       )}
     >
       <div
@@ -249,7 +286,9 @@ function DayColumn({
                 <EatoutCard
                   key={p.id}
                   party={p}
+                  date={day.date}
                   joined={p.participants.some((x) => x.id === me.id)}
+                  isMine={p.host?.id === me.id}
                   onJoin={() => onJoinEatout(p.id)}
                   onLeave={() => onLeaveEatout(p.id)}
                   pending={pending}
@@ -289,7 +328,7 @@ function DosirakCard({
         }
       }}
       className={cn(
-        "bg-cream-deep rounded-xl p-3 border border-butter-deep transition hover:bg-butter",
+        "bg-white rounded-xl p-3 border border-butter-deep transition hover:bg-cream-deep/60",
         partyId && "cursor-pointer",
       )}
     >
@@ -314,10 +353,12 @@ function DosirakCard({
 }
 
 function EatoutCard({
-  party, joined, onJoin, onLeave, pending,
+  party, date, joined, isMine, onJoin, onLeave, pending,
 }: {
   party: WeekData["days"][number]["eatouts"][number];
+  date: string;
   joined: boolean;
+  isMine: boolean;
   onJoin: () => void;
   onLeave: () => void;
   pending: boolean;
@@ -325,6 +366,7 @@ function EatoutCard({
   const router = useRouter();
   const tier = eatoutTier(party.participants.length);
   const navigate = () => router.push(`/party/${party.id}`);
+  const [dragging, setDragging] = useState(false);
   return (
     <div
       role="link"
@@ -336,12 +378,24 @@ function EatoutCard({
           navigate();
         }
       }}
+      draggable={isMine}
+      onDragStart={(e) => {
+        if (!isMine) return;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("application/x-party-id", party.id);
+        e.dataTransfer.setData("application/x-party-date", date);
+        setDragging(true);
+      }}
+      onDragEnd={() => setDragging(false)}
       className={cn(
         "rounded-xl p-3 border-2 transition cursor-pointer",
         tier.bg,
         tier.border,
         tier.hover,
+        isMine && "cursor-grab active:cursor-grabbing",
+        dragging && "opacity-50",
       )}
+      title={isMine ? "드래그해서 다른 날로 이동" : undefined}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
@@ -416,12 +470,12 @@ function JoinPill({
 
 function eatoutTier(count: number) {
   if (count === 0) {
-    return { bg: "bg-butter", border: "border-butter-deep", hover: "hover:bg-butter-deep" };
+    return { bg: "bg-white", border: "border-butter-deep", hover: "hover:bg-cream-deep/60" };
   }
   if (count <= 4) {
-    return { bg: "bg-butter-deep", border: "border-peach/40", hover: "hover:bg-mint/60" };
+    return { bg: "bg-white", border: "border-peach/50", hover: "hover:bg-cream-deep/60" };
   }
-  return { bg: "bg-mint", border: "border-peach", hover: "hover:bg-mint/80" };
+  return { bg: "bg-white", border: "border-peach", hover: "hover:bg-cream-deep" };
 }
 
 function SkeletonCalendar() {

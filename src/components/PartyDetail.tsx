@@ -91,9 +91,15 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
           {data.kind === "dosirak" ? "도시락" : (data.restaurantName ?? "외식")}
         </h1>
         {data.kind === "eatout" && data.host && (
-          <div className="flex items-center gap-2 mt-3 text-sm">
+          <div className="flex items-center gap-2 mt-3 text-sm flex-wrap">
             <Avatar seed={data.host.avatarSeed} url={data.host.avatarUrl} size="sm" />
             <span className="text-ink-soft">파티장 <strong className="text-ink">{data.host.displayName}</strong></span>
+            {isHost && data.participants.length > 0 && (
+              <DelegateHostButton
+                partyId={partyId}
+                participants={data.participants.filter((p) => p.id !== me.id)}
+              />
+            )}
           </div>
         )}
         {data.mapUrl && (
@@ -417,6 +423,91 @@ function timeAgo(iso: string) {
   if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
   return `${Math.floor(diff / 86400)}일 전`;
+}
+
+function DelegateHostButton({
+  partyId,
+  participants,
+}: {
+  partyId: string;
+  participants: Person[];
+}) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const delegate = useMutation({
+    mutationFn: async (newHostId: string) => {
+      const res = await fetch(`/api/parties/${partyId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ hostId: newHostId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "위임 실패");
+    },
+    onSuccess: () => {
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["party", partyId] });
+    },
+  });
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="text-xs font-semibold text-ink-soft hover:text-ink underline underline-offset-2"
+      >
+        위임
+      </button>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-pop-lg border-2 border-white w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-cream-deep">
+              <h2 className="font-display font-bold text-xl">파티장 위임</h2>
+              <button onClick={() => setOpen(false)} className="text-ink-soft hover:text-ink p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="px-5 pt-4 text-sm text-ink-soft">
+              새 파티장을 선택해주세요. 위임 후엔 파티장 권한을 잃어요.
+            </p>
+            <ul className="max-h-80 overflow-y-auto">
+              {participants.length === 0 ? (
+                <li className="px-5 py-10 text-center text-sm text-ink-soft">
+                  위임할 수 있는 참가자가 없어요
+                </li>
+              ) : (
+                participants.map((p) => (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => {
+                        if (confirm(`${p.displayName} 님에게 파티장을 위임할까요?`)) {
+                          delegate.mutate(p.id);
+                        }
+                      }}
+                      disabled={delegate.isPending}
+                      className="w-full text-left px-5 py-3 flex items-center gap-3 hover:bg-cream-deep/60 transition disabled:opacity-50"
+                    >
+                      <Avatar seed={p.avatarSeed} url={p.avatarUrl} size="sm" />
+                      <span className="flex-1 font-semibold text-sm">{p.displayName}</span>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+            {delegate.error && (
+              <p className="px-5 pb-4 text-sm text-bubblegum">{delegate.error.message}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 function InviteButton({ partyId }: { partyId: string }) {

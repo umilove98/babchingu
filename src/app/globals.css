@@ -2,8 +2,8 @@
 
 @theme {
   /* 컬러 — 노랑(배경) & 주황(액센트) 식욕 톤 */
-  --color-cream: #FFFBEB;         /* 페이지 배경 (옅은 노랑, amber 50) */
-  --color-cream-deep: #FEF3C7;    /* 보조 표면 (amber 100) */
+  --color-cream: #FFFFFF;         /* 페이지 배경 (흰색) */
+  --color-cream-deep: #FEF3C7;    /* 헤더/보조 표면 (amber 100 — 노란 톤) */
 
   --color-butter: #FEF3C7;        /* 카드 배경 (amber 100) */
   --color-butter-deep: #FDE68A;   /* 보더/hover (amber 200) */
@@ -11,8 +11,8 @@
   --color-mint: #FCD34D;          /* 강조 표면 (amber 300) — 인기 카드 */
   --color-mint-deep: #F59E0B;     /* amber 500 */
 
-  --color-peach: #EA580C;         /* PRIMARY ORANGE (orange 600) */
-  --color-peach-deep: #C2410C;    /* hover (orange 700) */
+  --color-peach: #D97706;         /* PRIMARY ORANGE — 톤다운 (amber 600) */
+  --color-peach-deep: #B45309;    /* hover (amber 700) */
 
   --color-lavender: #FEF3C7;      /* 보조 (amber 100) */
   --color-lavender-deep: #92400E; /* amber 800 — 보조 강조 */
