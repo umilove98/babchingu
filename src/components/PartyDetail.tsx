@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ExternalLink, MapPin, Send, Trash2, UserPlus, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -35,6 +36,7 @@ type Party = {
 
 export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
   const qc = useQueryClient();
+  const router = useRouter();
   const { data, isLoading, error } = useQuery({
     queryKey: ["party", partyId],
     queryFn: async () => {
@@ -60,6 +62,18 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["party", partyId] }),
   });
 
+  const deleteParty = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/parties/${partyId}`, { method: "DELETE" });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(b.error ?? "삭제 실패");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["week"] });
+      router.replace("/");
+    },
+  });
+
   if (isLoading) return <p className="text-center py-20 text-ink-soft">불러오는 중…</p>;
   if (error) return <p className="text-center py-20 text-bubblegum">불러오기 실패</p>;
   if (!data) {
@@ -82,10 +96,24 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
 
       <header
         className={cn(
-          "rounded-2xl p-6 border-2 shadow-pop",
+          "rounded-2xl p-6 border-2 shadow-pop relative",
           data.kind === "dosirak" ? "bg-mint/50 border-mint" : "bg-butter/60 border-butter",
         )}
       >
+        {isHost && data.kind === "eatout" && (
+          <button
+            onClick={() => {
+              if (confirm("이 파티를 정말 삭제할까요? 참가자·댓글이 모두 함께 사라져요.")) {
+                deleteParty.mutate();
+              }
+            }}
+            disabled={deleteParty.isPending}
+            className="absolute top-4 right-4 inline-flex items-center gap-1 text-xs font-semibold text-bubblegum hover:bg-white/60 rounded-md px-2 py-1 transition disabled:opacity-50"
+            title="파티 삭제"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> 삭제
+          </button>
+        )}
         <p className="text-sm text-ink-soft font-medium mb-1">{formatKoreanDate(data.partyDate)}</p>
         <h1 className="font-display font-bold text-3xl">
           {data.kind === "dosirak" ? "도시락" : (data.restaurantName ?? "외식")}

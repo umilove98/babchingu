@@ -125,3 +125,28 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   return NextResponse.json({ ok: true });
 }
+
+/** 호스트가 자기 외식 파티를 삭제. 도시락(시스템 파티)은 삭제 불가. */
+export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  let me;
+  try { me = await requireMe(); }
+  catch { return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }); }
+
+  const { id } = await ctx.params;
+  const party = await prisma.party.findUnique({
+    where: { id },
+    select: { hostId: true, kind: true },
+  });
+  if (!party) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+
+  if (party.kind !== "eatout") {
+    return NextResponse.json({ error: "도시락은 삭제할 수 없어요" }, { status: 400 });
+  }
+  if (!party.hostId || party.hostId !== me.id) {
+    return NextResponse.json({ error: "파티장만 삭제할 수 있어요" }, { status: 403 });
+  }
+
+  // 참가자·댓글·변경제안·알림은 FK on delete cascade 로 함께 정리됨
+  await prisma.party.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}
