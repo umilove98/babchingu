@@ -367,8 +367,8 @@ function JoinPill({
       className={cn(
         "h-7 px-3 rounded-lg text-[11px] font-bold transition active:scale-95 inline-flex items-center",
         joined
-          ? "bg-white text-ink-soft border-2 border-ink/15 hover:border-bubblegum hover:text-bubblegum"
-          : "bg-peach text-ink hover:bg-peach-deep hover:text-white shadow-[0_2px_0_0_rgba(74,74,107,0.15)]",
+          ? "bg-white text-ink-soft border border-ink/15 hover:border-bubblegum hover:text-bubblegum"
+          : "bg-peach text-white hover:bg-peach-deep",
         pending && "opacity-50",
       )}
     >
