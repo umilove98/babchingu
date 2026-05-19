@@ -469,13 +469,20 @@ function JoinPill({
 }
 
 function eatoutTier(count: number) {
+  // 게임 아이템 등급 — 인원이 늘어날수록 희귀
   if (count === 0) {
-    return { bg: "bg-white", border: "border-butter-deep", hover: "hover:bg-cream-deep/60" };
+    return { bg: "bg-white", border: "border-zinc-200", hover: "hover:bg-zinc-50" };
+  }
+  if (count <= 2) {
+    return { bg: "bg-white", border: "border-green-500", hover: "hover:bg-green-50" };
   }
   if (count <= 4) {
-    return { bg: "bg-white", border: "border-peach/50", hover: "hover:bg-cream-deep/60" };
+    return { bg: "bg-white", border: "border-blue-500", hover: "hover:bg-blue-50" };
   }
-  return { bg: "bg-white", border: "border-peach", hover: "hover:bg-cream-deep" };
+  if (count <= 6) {
+    return { bg: "bg-white", border: "border-purple-500", hover: "hover:bg-purple-50" };
+  }
+  return { bg: "bg-white", border: "border-red-500", hover: "hover:bg-red-50" };
 }
 
 function SkeletonCalendar() {
