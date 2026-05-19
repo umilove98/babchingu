@@ -61,7 +61,7 @@ export function NotificationBell() {
       if (!res.ok) throw new Error("failed");
       return res.json() as Promise<{ items: Notification[]; unread: number }>;
     },
-    refetchInterval: 8000,
+    refetchInterval: 30000,
   });
 
   const markRead = useMutation({

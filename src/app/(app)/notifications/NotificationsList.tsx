@@ -58,7 +58,7 @@ export function NotificationsList() {
       if (!res.ok) throw new Error("로드 실패");
       return res.json() as Promise<{ items: Notification[]; unread: number }>;
     },
-    refetchInterval: 10000,
+    refetchInterval: 60000,
   });
 
   const markAll = useMutation({
