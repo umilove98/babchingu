@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink, MessageCircle, MapPin, Plus, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -563,6 +563,36 @@ function AddEatoutModal({
 }) {
   const [name, setName] = useState("");
   const [mapUrl, setMapUrl] = useState("");
+  const [focused, setFocused] = useState(false);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
+
+  const { data: suggestions } = useQuery({
+    queryKey: ["restaurants"],
+    queryFn: async () => {
+      const res = await fetch("/api/restaurants");
+      if (!res.ok) throw new Error("로드 실패");
+      return res.json() as Promise<{ items: { name: string; mapUrl: string | null }[] }>;
+    },
+    staleTime: 60_000,
+  });
+
+  const matches = useMemo(() => {
+    if (!suggestions?.items) return [];
+    const q = name.trim().toLowerCase();
+    if (!q) return suggestions.items.slice(0, 8);
+    return suggestions.items
+      .filter((r) => r.name.toLowerCase().includes(q))
+      .filter((r) => r.name !== name.trim())
+      .slice(0, 8);
+  }, [suggestions, name]);
+
+  function pick(item: { name: string; mapUrl: string | null }) {
+    setName(item.name);
+    if (item.mapUrl) setMapUrl(item.mapUrl);
+    setFocused(false);
+    setHighlightIdx(-1);
+  }
+
   const add = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/parties", {
@@ -579,6 +609,8 @@ function AddEatoutModal({
     },
     onSuccess,
   });
+
+  const showDropdown = focused && matches.length > 0;
 
   return (
     <div
@@ -600,16 +632,67 @@ function AddEatoutModal({
           </button>
         </div>
         <div className="p-5 space-y-3">
-          <div>
+          <div className="relative">
             <label className="text-xs font-semibold text-ink-soft block mb-1 px-1">식당 이름</label>
             <Input
               autoFocus
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setHighlightIdx(-1);
+              }}
+              onFocus={() => setFocused(true)}
+              onBlur={() => {
+                // 살짝 지연을 둬서 dropdown 클릭이 먼저 처리되게 함
+                setTimeout(() => setFocused(false), 150);
+              }}
+              onKeyDown={(e) => {
+                if (!showDropdown) return;
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setHighlightIdx((i) => Math.min(matches.length - 1, i + 1));
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setHighlightIdx((i) => Math.max(-1, i - 1));
+                } else if (e.key === "Enter" && highlightIdx >= 0) {
+                  e.preventDefault();
+                  pick(matches[highlightIdx]);
+                } else if (e.key === "Escape") {
+                  setFocused(false);
+                }
+              }}
               placeholder="예: 시오리"
               required
               maxLength={80}
+              autoComplete="off"
             />
+            {showDropdown && (
+              <ul className="absolute left-0 right-0 mt-1 bg-white border border-ink/10 rounded-lg shadow-pop-lg max-h-60 overflow-y-auto z-10">
+                {matches.map((r, i) => (
+                  <li key={r.name}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        pick(r);
+                      }}
+                      onMouseEnter={() => setHighlightIdx(i)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm transition",
+                        highlightIdx === i ? "bg-cream-deep" : "hover:bg-cream-deep/60",
+                      )}
+                    >
+                      <div className="font-semibold text-ink truncate">{r.name}</div>
+                      {r.mapUrl && (
+                        <div className="text-[11px] text-ink-soft truncate">
+                          {r.mapUrl}
+                        </div>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div>
             <label className="text-xs font-semibold text-ink-soft block mb-1 px-1">네이버 지도 링크 (선택)</label>
