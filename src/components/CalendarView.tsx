@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, ExternalLink, MessageCircle, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, MessageCircle, MapPin, Plus, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 import {
   currentIsoWeek,
@@ -51,6 +52,7 @@ type WeekData = {
 
 export function CalendarView({ me, initialWeek }: { me: Me; initialWeek: string }) {
   const [week, setWeek] = useState(initialWeek);
+  const [addingDate, setAddingDate] = useState<string | null>(null);
   const router = useRouter();
   const qc = useQueryClient();
 
@@ -184,27 +186,30 @@ export function CalendarView({ me, initialWeek }: { me: Me; initialWeek: string 
               onDropParty={(partyId) =>
                 movePartyDate.mutate({ partyId, newDate: day.date })
               }
+              onAddEatout={() => setAddingDate(day.date)}
               pending={joinEatout.isPending || leaveEatout.isPending || joinDosirak.isPending || leaveDosirak.isPending || movePartyDate.isPending}
             />
           ))}
         </div>
       )}
 
-      {me.canHost && (
-        <div className="flex justify-center pt-4">
-          <Link href={`/register?week=${week}`}>
-            <Button variant="primary" size="lg">
-              이번 주 외식 등록·수정
-            </Button>
-          </Link>
-        </div>
+      {addingDate && (
+        <AddEatoutModal
+          date={addingDate}
+          onClose={() => setAddingDate(null)}
+          onSuccess={() => {
+            setAddingDate(null);
+            qc.invalidateQueries({ queryKey: ["week", week] });
+          }}
+        />
       )}
+
     </div>
   );
 }
 
 function DayColumn({
-  day, me, onJoinDosirak, onLeaveDosirak, onJoinEatout, onLeaveEatout, onDropParty, pending,
+  day, me, onJoinDosirak, onLeaveDosirak, onJoinEatout, onLeaveEatout, onDropParty, onAddEatout, pending,
 }: {
   day: WeekData["days"][number];
   me: Me;
@@ -213,6 +218,7 @@ function DayColumn({
   onJoinEatout: (id: string) => void;
   onLeaveEatout: (id: string) => void;
   onDropParty: (partyId: string) => void;
+  onAddEatout: () => void;
   pending: boolean;
 }) {
   const today = isToday(day.date);
@@ -295,6 +301,16 @@ function DayColumn({
                 />
               ))
             )}
+
+            {/* +추가 버튼 (권한자, 미래·오늘만) */}
+            {me.canHost && !past && (
+              <button
+                onClick={onAddEatout}
+                className="w-full mt-1 py-2 rounded-xl border border-dashed border-butter-deep text-ink-soft hover:bg-cream-deep hover:text-ink hover:border-peach/50 transition inline-flex items-center justify-center gap-1 text-xs font-semibold"
+              >
+                <Plus className="w-3.5 h-3.5" /> 추가
+              </button>
+            )}
           </>
         )}
       </div>
@@ -364,9 +380,34 @@ function EatoutCard({
   pending: boolean;
 }) {
   const router = useRouter();
+  const qc = useQueryClient();
   const tier = eatoutTier(party.participants.length);
   const navigate = () => router.push(`/party/${party.id}`);
   const [dragging, setDragging] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const deleteParty = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/parties/${party.id}`, { method: "DELETE" });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(b.error ?? "삭제 실패");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["week"] }),
+  });
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("contextmenu", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("contextmenu", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [ctxMenu]);
+
   return (
     <div
       role="link"
@@ -377,6 +418,12 @@ function EatoutCard({
           e.preventDefault();
           navigate();
         }
+      }}
+      onContextMenu={(e) => {
+        if (!isMine) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setCtxMenu({ x: e.clientX, y: e.clientY });
       }}
       draggable={isMine}
       onDragStart={(e) => {
@@ -395,7 +442,7 @@ function EatoutCard({
         isMine && "cursor-grab active:cursor-grabbing",
         dragging && "opacity-50",
       )}
-      title={isMine ? "드래그해서 다른 날로 이동" : undefined}
+      title={isMine ? "드래그해서 다른 날로 이동 · 우클릭으로 삭제" : undefined}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
@@ -438,6 +485,28 @@ function EatoutCard({
         >
           <MapPin className="w-3 h-3" /> 위치보기 <ExternalLink className="w-2.5 h-2.5" />
         </a>
+      )}
+
+      {ctxMenu && (
+        <div
+          style={{ position: "fixed", left: ctxMenu.x, top: ctxMenu.y, zIndex: 60 }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-white rounded-lg shadow-pop-lg border border-ink/10 py-1 min-w-[120px] animate-pop-in"
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setCtxMenu(null);
+              if (confirm(`'${party.restaurantName}' 파티를 삭제할까요? 참가자·댓글이 모두 사라져요.`)) {
+                deleteParty.mutate();
+              }
+            }}
+            disabled={deleteParty.isPending}
+            className="block w-full text-left px-3 py-1.5 text-sm text-bubblegum hover:bg-bubblegum/10 font-semibold"
+          >
+            삭제
+          </button>
+        </div>
       )}
     </div>
   );
@@ -483,6 +552,84 @@ function eatoutTier(count: number) {
     return { bg: "bg-white", border: "border-purple-500", hover: "hover:bg-purple-50" };
   }
   return { bg: "bg-white", border: "border-red-500", hover: "hover:bg-red-50" };
+}
+
+function AddEatoutModal({
+  date, onClose, onSuccess,
+}: {
+  date: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [mapUrl, setMapUrl] = useState("");
+  const add = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/parties", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          partyDate: date,
+          restaurantName: name.trim(),
+          mapUrl: mapUrl.trim() || undefined,
+        }),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(b.error ?? "등록 실패");
+    },
+    onSuccess,
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <form
+        className="bg-white rounded-2xl shadow-pop-lg border-2 border-white w-full max-w-sm"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim()) add.mutate();
+        }}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-deep">
+          <h2 className="font-display font-bold text-xl">{formatKoreanDate(date)} 외식 등록</h2>
+          <button type="button" onClick={onClose} className="text-ink-soft hover:text-ink p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-ink-soft block mb-1 px-1">식당 이름</label>
+            <Input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="예: 시오리"
+              required
+              maxLength={80}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-ink-soft block mb-1 px-1">네이버 지도 링크 (선택)</label>
+            <Input
+              value={mapUrl}
+              onChange={(e) => setMapUrl(e.target.value)}
+              placeholder="https://map.naver.com/..."
+            />
+          </div>
+          {add.error && <p className="text-bubblegum text-sm">{add.error.message}</p>}
+          <div className="flex gap-2 justify-end pt-2">
+            <Button type="button" variant="ghost" onClick={onClose}>취소</Button>
+            <Button type="submit" disabled={!name.trim() || add.isPending}>
+              {add.isPending ? "등록 중…" : "등록"}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 function SkeletonCalendar() {

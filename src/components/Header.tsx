@@ -44,14 +44,6 @@ export function Header({ me }: { me: Me }) {
           >
             업적
           </Link>
-          {me.canHost && (
-            <Link
-              href="/register"
-              className="px-3 py-2 rounded-full text-sm font-semibold text-ink hover:bg-cream-deep hidden sm:inline-block"
-            >
-              외식 등록
-            </Link>
-          )}
           {me.isAdmin && (
             <Link
               href="/admin"
@@ -114,14 +106,6 @@ export function Header({ me }: { me: Me }) {
         >
           업적
         </Link>
-        {me.canHost && (
-          <Link
-            href="/register"
-            className="flex-1 text-center py-2 rounded-full text-sm font-semibold text-ink hover:bg-cream-deep"
-          >
-            외식 등록
-          </Link>
-        )}
         {me.isAdmin && (
           <Link
             href="/admin"
