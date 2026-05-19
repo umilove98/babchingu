@@ -1,0 +1,109 @@
+// 밥친구 — 로컬 개발용 Prisma 스키마 (SQLite)
+// 향후 Supabase Postgres 이전 시: provider 를 "postgresql" 로 변경 + db/postgres-schema.sql 의 RLS·트리거 적용
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  displayName  String
+  passwordHash String
+  avatarSeed   String   // DiceBear 시드
+  canHost      Boolean  @default(false)
+  isAdmin      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  hostedParties      Party[]                   @relation("PartyHost")
+  participations     Participation[]
+  comments           Comment[]
+  changeRequests     RestaurantChangeRequest[]
+  notificationsRecv  Notification[]            @relation("NotifReceiver")
+  notificationsActed Notification[]            @relation("NotifActor")
+}
+
+model Party {
+  id             String   @id @default(cuid())
+  partyDate      String   // 'YYYY-MM-DD' (KST). SQLite Date 회피용 문자열.
+  kind           String   // 'dosirak' | 'eatout'
+  restaurantName String?
+  mapUrl         String?
+  hostId         String?
+  createdAt      DateTime @default(now())
+
+  host           Profile? @relation("PartyHost", fields: [hostId], references: [id], onDelete: SetNull)
+  participations Participation[]
+  comments       Comment[]
+  changeRequests RestaurantChangeRequest[]
+  notifications  Notification[]
+
+  // 도시락은 결정적 ID(`dos_YYYY-MM-DD`)로 중복 방지 (PK가 dedup 역할).
+  // 외식은 같은 날 같은 호스트가 여러 식당 등록 가능 (제약 없음).
+  @@index([partyDate])
+  @@index([hostId, partyDate])
+}
+
+model Participation {
+  partyId  String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  party Party   @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user  Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([partyId, userId])
+  @@index([userId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  partyId   String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+
+  party Party   @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user  Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([partyId, createdAt])
+}
+
+model RestaurantChangeRequest {
+  id          String    @id @default(cuid())
+  partyId     String
+  requesterId String
+  newName     String
+  newMapUrl   String?
+  reason      String?
+  status      String    @default("pending") // 'pending' | 'approved' | 'rejected'
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  party     Party   @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  requester Profile @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([partyId, status])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String    // 받는 사람
+  kind      String    // 'new_member' | 'new_comment' | 'change_requested' | 'restaurant_changed'
+  partyId   String?
+  actorId   String?
+  payload   String?   // JSON 문자열 (before/after 식당명 등)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user  Profile  @relation("NotifReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  actor Profile? @relation("NotifActor", fields: [actorId], references: [id], onDelete: SetNull)
+  party Party?   @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
