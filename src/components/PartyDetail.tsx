@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ExternalLink, MapPin, Send, Trash2, UserPlus, X } from "lucide-react";
+import { Check, ChevronLeft, Copy, ExternalLink, MapPin, Send, Trash2, UserPlus, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -22,6 +22,7 @@ type ChangeRequest = {
   requester: Person;
   createdAt: string;
 };
+type Guest = { id: string; name: string };
 type Party = {
   id: string;
   partyDate: string;
@@ -30,6 +31,7 @@ type Party = {
   mapUrl: string | null;
   host: Person | null;
   participants: Person[];
+  guests: Guest[];
   comments: Comment[];
   pendingRequests: ChangeRequest[];
 };
@@ -143,17 +145,25 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
 
         <div className="mt-5 flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-ink-soft mb-1.5">함께 가요 ({data.participants.length}명)</p>
+            <p className="text-xs font-semibold text-ink-soft mb-1.5">함께 가요 ({data.participants.length + data.guests.length}명)</p>
             <div className="flex flex-wrap gap-2">
-              {data.participants.length === 0 ? (
+              {data.participants.length === 0 && data.guests.length === 0 ? (
                 <span className="text-sm text-ink-soft/70">아직 아무도 없어요. 첫 주자가 되어보세요!</span>
               ) : (
-                data.participants.map((p) => (
-                  <div key={p.id} className="flex items-center gap-1.5 bg-white/70 pl-1 pr-3 py-1 rounded-full">
-                    <Avatar seed={p.avatarSeed} url={p.avatarUrl} size="sm" />
-                    <span className="text-xs font-semibold">{p.displayName}</span>
-                  </div>
-                ))
+                <>
+                  {data.participants.map((p) => (
+                    <div key={p.id} className="flex items-center gap-1.5 bg-white/70 pl-1 pr-3 py-1 rounded-full">
+                      <Avatar seed={p.avatarSeed} url={p.avatarUrl} size="sm" />
+                      <span className="text-xs font-semibold">{p.displayName}</span>
+                    </div>
+                  ))}
+                  {data.guests.map((g) => (
+                    <div key={g.id} className="flex items-center gap-1.5 bg-white/60 pl-2.5 pr-3 py-1 rounded-full border border-dashed border-ink/15">
+                      <span className="text-xs font-semibold text-ink-soft">손님</span>
+                      <span className="text-xs font-semibold">{g.name}</span>
+                    </div>
+                  ))}
+                </>
               )}
             </div>
           </div>
@@ -594,6 +604,38 @@ function DelegateHostButton({
   );
 }
 
+function CopyLinkButton({ partyId }: { partyId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/party/${partyId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard API 거부 시 prompt 로 폴백
+      window.prompt("링크 복사:", url);
+    }
+  }
+
+  return (
+    <button
+      onClick={copy}
+      className={cn(
+        "w-full inline-flex items-center justify-center gap-2 text-sm font-bold rounded-lg px-3 py-2.5 transition",
+        copied
+          ? "bg-mint/40 text-ink"
+          : "bg-peach text-ink hover:bg-peach-deep hover:text-white",
+      )}
+    >
+      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+      {copied ? "복사됨!" : "링크 복사"}
+    </button>
+  );
+}
+
 function InviteButton({ partyId }: { partyId: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -663,6 +705,12 @@ function InviteModal({ partyId, onClose }: { partyId: string; onClose: () => voi
           <button onClick={onClose} className="text-ink-soft hover:text-ink p-1">
             <X className="w-5 h-5" />
           </button>
+        </div>
+        <div className="px-5 py-3 border-b border-cream-deep">
+          <CopyLinkButton partyId={partyId} />
+          <p className="text-[11px] text-ink-soft/80 mt-1.5 leading-snug">
+            회원이 아닌 사람도 링크로 접속해서 이름만 적고 참가할 수 있어요
+          </p>
         </div>
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (

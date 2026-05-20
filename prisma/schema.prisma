@@ -51,6 +51,7 @@ model Party {
 
   host           Profile? @relation("PartyHost", fields: [hostId], references: [id], onDelete: SetNull)
   participations Participation[]
+  guests         GuestParticipation[]
   comments       Comment[]
   changeRequests RestaurantChangeRequest[]
   notifications  Notification[]
@@ -71,6 +72,21 @@ model Participation {
 
   @@id([partyId, userId])
   @@index([userId])
+}
+
+// 비회원(손님) 참가 — 초대 링크로 접근한 사람용.
+// token 은 클라이언트가 생성한 ID로, 같은 브라우저에서만 자기 참가 취소 가능.
+model GuestParticipation {
+  id       String   @id @default(cuid())
+  partyId  String
+  name     String   // 손님이 입력한 이름
+  token    String   // 클라이언트 localStorage 의 익명 식별자
+  joinedAt DateTime @default(now())
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, token])
+  @@index([partyId])
 }
 
 model Comment {

@@ -252,6 +252,47 @@ export async function notifyLeft(partyId: string, leaverId: string) {
   });
 }
 
+/** 비회원(손님)이 파티에 참가했을 때. 기존 멤버에게 new_member 알림 (actor=null, payload.guest_name). */
+export async function notifyGuestJoined(partyId: string, guestName: string) {
+  const raw = await recipientsOfParty(partyId);
+  const recipients = await filterByPref(raw, "notifParticipants");
+  await bulkInsert(recipients, "new_member", partyId, null, { guest_name: guestName });
+
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    select: { partyDate: true, kind: true, restaurantName: true },
+  });
+  await sendPushToUsers(recipients, {
+    title: `손님 ${guestName} 님이 합류했어요`,
+    body: partyLabel(party),
+    url: `/party/${partyId}`,
+    tag: `new_member-${partyId}`,
+  });
+}
+
+/** 비회원(손님)이 참가 취소했을 때. */
+export async function notifyGuestLeft(partyId: string, guestName: string) {
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    select: { hostId: true, partyDate: true, kind: true, restaurantName: true },
+  });
+  if (!party) return;
+
+  const raw = party.hostId
+    ? [party.hostId]
+    : await recipientsOfParty(partyId);
+  const recipients = await filterByPref(raw, "notifParticipants");
+  if (recipients.length === 0) return;
+
+  await bulkInsert(recipients, "left", partyId, null, { guest_name: guestName });
+  await sendPushToUsers(recipients, {
+    title: `손님 ${guestName} 님이 떠났어요`,
+    body: partyLabel(party),
+    url: `/party/${partyId}`,
+    tag: `left-${partyId}`,
+  });
+}
+
 /** 같은 날 다른 파티에 이미 참가 중이면 자동 탈퇴시키고 떠남 알림 발송. */
 export async function enforceSingleDayJoin(
   userId: string,

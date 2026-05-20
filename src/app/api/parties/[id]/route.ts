@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireMe } from "@/lib/auth";
+import { getMe, requireMe } from "@/lib/auth";
 import { isHoliday } from "@/lib/holidays";
 import { notifyRestaurantChanged } from "@/lib/notify";
 
+/** 파티 상세 — 로그인·비회원 모두 접근 가능. 비회원에겐 댓글·변경제안 숨김. */
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  try { await requireMe(); }
-  catch { return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }); }
+  const me = await getMe();
 
   const { id } = await ctx.params;
   const party = await prisma.party.findUnique({
@@ -16,6 +16,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       host: { select: { id: true, displayName: true, avatarSeed: true, avatarUrl: true } },
       participations: {
         include: { user: { select: { id: true, displayName: true, avatarSeed: true, avatarUrl: true } } },
+        orderBy: { joinedAt: "asc" },
+      },
+      guests: {
+        select: { id: true, name: true, joinedAt: true },
         orderBy: { joinedAt: "asc" },
       },
       comments: {
@@ -39,20 +43,25 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     mapUrl: party.mapUrl,
     host: party.host,
     participants: party.participations.map((p) => p.user),
-    comments: party.comments.map((c) => ({
-      id: c.id,
-      body: c.body,
-      createdAt: c.createdAt.toISOString(),
-      user: c.user,
-    })),
-    pendingRequests: party.changeRequests.map((r) => ({
-      id: r.id,
-      newName: r.newName,
-      newMapUrl: r.newMapUrl,
-      reason: r.reason,
-      requester: r.requester,
-      createdAt: r.createdAt.toISOString(),
-    })),
+    guests: party.guests.map((g) => ({ id: g.id, name: g.name })),
+    comments: me
+      ? party.comments.map((c) => ({
+          id: c.id,
+          body: c.body,
+          createdAt: c.createdAt.toISOString(),
+          user: c.user,
+        }))
+      : [],
+    pendingRequests: me
+      ? party.changeRequests.map((r) => ({
+          id: r.id,
+          newName: r.newName,
+          newMapUrl: r.newMapUrl,
+          reason: r.reason,
+          requester: r.requester,
+          createdAt: r.createdAt.toISOString(),
+        }))
+      : [],
   });
 }
 

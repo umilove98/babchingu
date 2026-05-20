@@ -35,8 +35,13 @@ type Notification = {
 };
 
 const labels: Record<Notification["kind"], (n: Notification) => string> = {
-  new_member: (n) =>
-    `${n.partyLabel ?? "파티"} 파티에 ${n.actorName ?? "누군가"} 님이 합류했어요`,
+  new_member: (n) => {
+    const guestName = (n.payload as { guest_name?: string } | null)?.guest_name;
+    if (guestName) {
+      return `${n.partyLabel ?? "파티"} 파티에 손님 ${guestName} 님이 합류했어요`;
+    }
+    return `${n.partyLabel ?? "파티"} 파티에 ${n.actorName ?? "누군가"} 님이 합류했어요`;
+  },
   new_comment: (n) =>
     `${n.partyLabel ?? "파티"} 파티에 ${n.actorName ?? "누군가"} 님이 댓글을 남겼어요`,
   change_requested: (n) => {
@@ -59,8 +64,13 @@ const labels: Record<Notification["kind"], (n: Notification) => string> = {
     const inviteeName = (n.payload as { invitee_name?: string } | null)?.invitee_name ?? "당신";
     return `${n.actorName ?? "누군가"} 님이 ${inviteeName} 님을 ${n.partyLabel ?? "파티"} 파티에 초대했어요!`;
   },
-  left: (n) =>
-    `${n.partyLabel ?? "파티"} 파티에서 ${n.actorName ?? "누군가"} 님이 떠났어요`,
+  left: (n) => {
+    const guestName = (n.payload as { guest_name?: string } | null)?.guest_name;
+    if (guestName) {
+      return `${n.partyLabel ?? "파티"} 파티에서 손님 ${guestName} 님이 떠났어요`;
+    }
+    return `${n.partyLabel ?? "파티"} 파티에서 ${n.actorName ?? "누군가"} 님이 떠났어요`;
+  },
   party_created: (n) =>
     `${n.actorName ?? "누군가"} 님이 ${n.partyLabel ?? "새 파티"} 를 열었어요`,
 };
