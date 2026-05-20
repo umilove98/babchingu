@@ -385,6 +385,7 @@ function EatoutCard({
   const navigate = () => router.push(`/party/${party.id}`);
   const [dragging, setDragging] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const deleteParty = useMutation({
     mutationFn: async () => {
@@ -442,7 +443,7 @@ function EatoutCard({
         isMine && "cursor-grab active:cursor-grabbing",
         dragging && "opacity-50",
       )}
-      title={isMine ? "드래그해서 다른 날로 이동 · 우클릭으로 삭제" : undefined}
+      title={isMine ? "드래그해서 다른 날로 이동 · 우클릭으로 편집·삭제" : undefined}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
@@ -495,6 +496,16 @@ function EatoutCard({
             onClick={(e) => {
               e.stopPropagation();
               setCtxMenu(null);
+              setEditOpen(true);
+            }}
+            className="block w-full text-left px-3 py-1.5 text-sm text-ink hover:bg-cream/60 font-semibold"
+          >
+            편집
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setCtxMenu(null);
               if (confirm(`'${party.restaurantName}' 파티를 삭제할까요? 참가자·댓글이 모두 사라져요.`)) {
                 deleteParty.mutate();
               }
@@ -506,6 +517,120 @@ function EatoutCard({
           </button>
         </div>
       )}
+
+      {editOpen && (
+        <EditEatoutModal
+          party={party}
+          date={date}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditEatoutModal({
+  party, date, onClose,
+}: {
+  party: WeekData["days"][number]["eatouts"][number];
+  date: string;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [name, setName] = useState(party.restaurantName);
+  const [mapUrl, setMapUrl] = useState(party.mapUrl ?? "");
+  const [partyDate, setPartyDate] = useState(date);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const payload: Record<string, unknown> = {};
+      if (name.trim() !== party.restaurantName) payload.restaurantName = name.trim();
+      const trimmedMap = mapUrl.trim();
+      if (trimmedMap !== (party.mapUrl ?? "")) {
+        payload.mapUrl = trimmedMap || null;
+      }
+      if (partyDate !== date) payload.partyDate = partyDate;
+      if (Object.keys(payload).length === 0) return;
+
+      const res = await fetch(`/api/parties/${party.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "저장 실패");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["week"] });
+      onClose();
+    },
+  });
+
+  const dirty =
+    name.trim() !== party.restaurantName ||
+    mapUrl.trim() !== (party.mapUrl ?? "") ||
+    partyDate !== date;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-pop-lg border-2 border-white w-full max-w-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-deep">
+          <h2 className="font-display font-bold text-xl">외식 편집</h2>
+          <button onClick={onClose} className="text-ink-soft hover:text-ink p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form
+          className="p-5 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (dirty && name.trim()) save.mutate();
+          }}
+        >
+          <div>
+            <label className="text-xs font-semibold text-ink-soft block mb-1 px-1">식당 이름</label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={80}
+              autoFocus
+              required
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-ink-soft block mb-1 px-1">지도 링크</label>
+            <Input
+              value={mapUrl}
+              onChange={(e) => setMapUrl(e.target.value)}
+              placeholder="https://..."
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-ink-soft block mb-1 px-1">날짜</label>
+            <Input
+              type="date"
+              value={partyDate}
+              onChange={(e) => setPartyDate(e.target.value)}
+            />
+          </div>
+
+          {save.error && <p className="text-bubblegum text-xs">{save.error.message}</p>}
+
+          <div className="flex gap-2 justify-end pt-2">
+            <Button type="button" variant="ghost" onClick={onClose}>취소</Button>
+            <Button type="submit" disabled={!dirty || !name.trim() || save.isPending}>
+              {save.isPending ? "저장 중…" : "저장"}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
