@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ExternalLink, MapPin, Send, Trash2, UserPlus, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
@@ -177,7 +177,6 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
           partyId={partyId}
           myId={me.id}
           isHost={isHost}
-          isParticipant={joined}
           pendingRequests={data.pendingRequests}
           currentName={data.restaurantName ?? ""}
         />
@@ -219,6 +218,7 @@ function CommentsSection({
 }) {
   const qc = useQueryClient();
   const [body, setBody] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const add = useMutation({
     mutationFn: async () => {
@@ -227,7 +227,7 @@ function CommentsSection({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ body }),
       });
-      if (!res.ok) throw new Error("댓글 실패");
+      if (!res.ok) throw new Error("메시지 전송 실패");
     },
     onSuccess: () => {
       setBody("");
@@ -243,54 +243,109 @@ function CommentsSection({
     onSuccess: () => qc.invalidateQueries({ queryKey: ["party", partyId] }),
   });
 
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [comments.length]);
+
   return (
-    <section className="bg-white rounded-2xl shadow-pop border-2 border-white p-5">
-      <h2 className="font-display font-bold text-xl mb-4">한마디</h2>
-      <ul className="space-y-3 mb-4">
+    <section className="bg-white rounded-2xl shadow-pop border-2 border-white overflow-hidden">
+      <header className="px-5 py-3 border-b border-cream-deep flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-peach" />
+        <h2 className="font-display font-bold text-lg">메뉴토론방</h2>
+        <span className="text-xs text-ink-soft ml-auto">{comments.length}개의 메시지</span>
+      </header>
+      <div
+        ref={scrollRef}
+        className="bg-cream-deep/40 px-4 py-4 max-h-[28rem] overflow-y-auto"
+      >
         {comments.length === 0 ? (
-          <p className="text-sm text-ink-soft/70 text-center py-6">아직 댓글이 없어요</p>
+          <p className="text-sm text-ink-soft/70 text-center py-12">
+            아직 메시지가 없어요.<br />메뉴 얘기 먼저 꺼내볼까요?
+          </p>
         ) : (
-          comments.map((c) => (
-            <li key={c.id} className="flex gap-2.5 items-start">
-              <Avatar seed={c.user.avatarSeed} url={c.user.avatarUrl} size="sm" />
-              <div className="flex-1 bg-cream/60 rounded-xl px-3.5 py-2.5 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <strong className="text-sm">{c.user.displayName}</strong>
-                  <span className="text-[11px] text-ink-soft">{timeAgo(c.createdAt)}</span>
-                </div>
-                <p className="text-[14px] mt-0.5 whitespace-pre-wrap break-words">{c.body}</p>
-              </div>
-              {c.user.id === me.id && (
-                <button
-                  onClick={() => del.mutate(c.id)}
-                  className="text-ink-soft hover:text-bubblegum p-1"
-                  title="삭제"
+          <ul>
+            {comments.map((c, i) => {
+              const isMine = c.user.id === me.id;
+              const prev = comments[i - 1];
+              const next = comments[i + 1];
+              const sameAsPrev = prev && prev.user.id === c.user.id && withinMinutes(prev.createdAt, c.createdAt, 5);
+              const sameAsNext = next && next.user.id === c.user.id && withinMinutes(c.createdAt, next.createdAt, 5);
+              const showHeader = !sameAsPrev;
+              const showTime = !sameAsNext;
+              return (
+                <li
+                  key={c.id}
+                  className={cn(
+                    "flex items-end gap-2",
+                    isMine ? "flex-row-reverse" : "flex-row",
+                    showHeader ? "mt-3 first:mt-0" : "mt-0.5",
+                  )}
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </li>
-          ))
+                  {!isMine && (
+                    <div className="w-8 shrink-0">
+                      {showHeader && (
+                        <Avatar seed={c.user.avatarSeed} url={c.user.avatarUrl} size="sm" />
+                      )}
+                    </div>
+                  )}
+                  <div className={cn("flex flex-col min-w-0 max-w-[75%]", isMine ? "items-end" : "items-start")}>
+                    {!isMine && showHeader && (
+                      <strong className="text-xs text-ink-soft mb-1 px-1">{c.user.displayName}</strong>
+                    )}
+                    <div className={cn("flex items-end gap-1.5", isMine ? "flex-row-reverse" : "flex-row")}>
+                      <div
+                        className={cn(
+                          "rounded-2xl px-3.5 py-2 break-words whitespace-pre-wrap text-[14px] shadow-pop-sm",
+                          isMine
+                            ? "bg-peach text-white rounded-br-md"
+                            : "bg-white border border-cream-deep rounded-bl-md",
+                        )}
+                      >
+                        {c.body}
+                      </div>
+                      <div className="flex flex-col items-center gap-0.5">
+                        {isMine && (
+                          <button
+                            onClick={() => del.mutate(c.id)}
+                            className="text-ink-soft hover:text-bubblegum p-0.5"
+                            title="삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {showTime && (
+                          <span className="text-[10px] text-ink-soft whitespace-nowrap">
+                            {timeAgo(c.createdAt)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         )}
-      </ul>
+      </div>
       <form
-        className="flex gap-2"
+        className="flex gap-2 p-3 border-t border-cream-deep bg-white"
         onSubmit={(e) => {
           e.preventDefault();
           if (body.trim()) add.mutate();
         }}
       >
         <Input
-          placeholder="한마디 남기기"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           maxLength={500}
+          className="!h-12"
         />
         <Button
           type="submit"
           disabled={!body.trim() || add.isPending}
-          aria-label="댓글 보내기"
-          className="!h-12 !w-12 !px-0 !rounded-xl"
+          aria-label="보내기"
+          className="!h-12 !w-12 !px-0 !rounded-xl shrink-0"
         >
           <Send className="w-4 h-4" />
         </Button>
@@ -299,13 +354,16 @@ function CommentsSection({
   );
 }
 
+function withinMinutes(a: string, b: string, mins: number) {
+  return Math.abs(new Date(a).getTime() - new Date(b).getTime()) < mins * 60_000;
+}
+
 function ChangeRequestsSection({
-  partyId, myId, isHost, isParticipant, pendingRequests, currentName,
+  partyId, myId, isHost, pendingRequests, currentName,
 }: {
   partyId: string;
   myId: string;
   isHost: boolean;
-  isParticipant: boolean;
   pendingRequests: ChangeRequest[];
   currentName: string;
 }) {
@@ -356,13 +414,11 @@ function ChangeRequestsSection({
     onSuccess: () => qc.invalidateQueries({ queryKey: ["party", partyId] }),
   });
 
-  if (pendingRequests.length === 0 && !isParticipant) return null;
-
   return (
     <section className="bg-white rounded-2xl shadow-pop border-2 border-white p-5">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h2 className="font-display font-bold text-xl">식당 변경 제안</h2>
-        {isParticipant && !isHost && (
+        {!isHost && (
           <Button variant="soft" size="sm" onClick={() => setOpen((v) => !v)}>
             {open ? "닫기" : "제안하기"}
           </Button>
