@@ -27,12 +27,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (party.kind !== "eatout") {
     return NextResponse.json({ error: "도시락은 식당 변경 제안을 받지 않아요" }, { status: 400 });
   }
-  const part = await prisma.participation.findUnique({
-    where: { partyId_userId: { partyId: id, userId: me.id } },
-  });
-  if (!part && party.hostId !== me.id) {
-    return NextResponse.json({ error: "파티에 참가한 사람만 제안할 수 있어요" }, { status: 403 });
-  }
 
   await prisma.restaurantChangeRequest.create({
     data: {
