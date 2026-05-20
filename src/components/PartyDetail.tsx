@@ -378,28 +378,7 @@ function ChangeRequestsSection({
   currentName: string;
 }) {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newMapUrl, setNewMapUrl] = useState("");
-  const [reason, setReason] = useState("");
-
-  const propose = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/parties/${partyId}/change-requests`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ newName, newMapUrl: newMapUrl || undefined, reason: reason || undefined }),
-      });
-      if (!res.ok) {
-        const b = await res.json().catch(() => ({}));
-        throw new Error(b.error ?? "제안 실패");
-      }
-    },
-    onSuccess: () => {
-      setOpen(false); setNewName(""); setNewMapUrl(""); setReason("");
-      qc.invalidateQueries({ queryKey: ["party", partyId] });
-    },
-  });
+  const [proposeOpen, setProposeOpen] = useState(false);
 
   const decide = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: "approve" | "reject" }) => {
@@ -429,41 +408,18 @@ function ChangeRequestsSection({
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h2 className="font-display font-bold text-xl">식당 변경 제안</h2>
         {!isHost && (
-          <Button variant="soft" size="sm" onClick={() => setOpen((v) => !v)}>
-            {open ? "닫기" : "제안하기"}
+          <Button variant="soft" size="sm" onClick={() => setProposeOpen(true)}>
+            제안하기
           </Button>
         )}
       </div>
 
-      {open && (
-        <form
-          className="space-y-2 mb-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (newName.trim()) propose.mutate();
-          }}
-        >
-          <Input
-            placeholder="새 식당 이름"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            required
-          />
-          <Input
-            placeholder="네이버 지도 링크 (선택)"
-            value={newMapUrl}
-            onChange={(e) => setNewMapUrl(e.target.value)}
-          />
-          <Input
-            placeholder="제안 이유 (선택)"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-          <Button type="submit" disabled={!newName.trim() || propose.isPending}>
-            제안 보내기
-          </Button>
-          {propose.error && <p className="text-bubblegum text-xs">{propose.error.message}</p>}
-        </form>
+      {proposeOpen && (
+        <ChangeProposalModal
+          partyId={partyId}
+          currentName={currentName}
+          onClose={() => setProposeOpen(false)}
+        />
       )}
 
       {pendingRequests.length === 0 ? (
@@ -601,6 +557,109 @@ function DelegateHostButton({
         </div>
       )}
     </>
+  );
+}
+
+function ChangeProposalModal({
+  partyId, currentName, onClose,
+}: {
+  partyId: string;
+  currentName: string;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [newName, setNewName] = useState("");
+  const [newMapUrl, setNewMapUrl] = useState("");
+  const [reason, setReason] = useState("");
+
+  const propose = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/parties/${partyId}/change-requests`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          newName: newName.trim(),
+          newMapUrl: newMapUrl.trim() || undefined,
+          reason: reason.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        throw new Error(b.error ?? "제안 실패");
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["party", partyId] });
+      onClose();
+    },
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-pop-lg border-2 border-white w-full max-w-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-deep">
+          <h2 className="font-display font-bold text-xl">식당 변경 제안</h2>
+          <button onClick={onClose} className="text-ink-soft hover:text-ink p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form
+          className="p-5 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (newName.trim()) propose.mutate();
+          }}
+        >
+          {currentName && (
+            <p className="text-xs text-ink-soft">
+              현재 식당: <strong className="text-ink">{currentName}</strong>
+            </p>
+          )}
+          <div>
+            <label className="text-xs font-semibold text-ink-soft block mb-1 px-1">새 식당 이름</label>
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              maxLength={80}
+              autoFocus
+              required
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-ink-soft block mb-1 px-1">네이버 지도 링크 (선택)</label>
+            <Input
+              value={newMapUrl}
+              onChange={(e) => setNewMapUrl(e.target.value)}
+              placeholder="https://..."
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-ink-soft block mb-1 px-1">제안 이유 (선택)</label>
+            <Input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={300}
+            />
+          </div>
+
+          {propose.error && <p className="text-bubblegum text-xs">{propose.error.message}</p>}
+
+          <div className="flex gap-2 justify-end pt-2">
+            <Button type="button" variant="ghost" onClick={onClose}>취소</Button>
+            <Button type="submit" disabled={!newName.trim() || propose.isPending}>
+              {propose.isPending ? "보내는 중…" : "제안 보내기"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
