@@ -261,28 +261,21 @@ function CoffeeBellChat({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 py-3 border-b border-cream-deep flex items-center gap-2.5">
-          <Coffee className="w-5 h-5 text-peach" />
+          <Coffee className="w-5 h-5 text-peach shrink-0" />
           <div className="flex-1 min-w-0">
-            <h2 className="font-display font-bold text-lg leading-tight">
+            <h2 className="font-display font-bold text-lg leading-tight truncate">
               {bell.initiator.displayName} 님의 커피
             </h2>
             <p className="text-[11px] text-ink-soft">
               {bell.timingLabel} · 가능 {bell.counts.available}/{bell.counts.total}
             </p>
           </div>
-          <button onClick={onClose} className="text-ink-soft hover:text-ink p-1">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {bell.isTarget && (
-          <div className="px-5 py-3 border-b border-cream-deep flex items-center justify-between gap-3">
-            <span className="text-sm text-ink-soft">참여 가능하신가요?</span>
+          {bell.isTarget && (
             <button
               onClick={() => toggleAvailable.mutate()}
               disabled={toggleAvailable.isPending}
               className={cn(
-                "text-xs font-bold rounded-lg px-3 py-1.5 transition disabled:opacity-50",
+                "text-xs font-bold rounded-lg px-3 py-1.5 transition disabled:opacity-50 shrink-0",
                 bell.available
                   ? "bg-mint text-ink"
                   : "bg-peach text-white hover:bg-peach-deep",
@@ -290,8 +283,11 @@ function CoffeeBellChat({
             >
               {bell.available ? "✓ 가능" : "가능"}
             </button>
-          </div>
-        )}
+          )}
+          <button onClick={onClose} className="text-ink-soft hover:text-ink p-1 shrink-0">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         <div ref={scrollRef} className="bg-cream-deep/40 px-4 py-4 flex-1 overflow-y-auto">
           {messages.length === 0 ? (
