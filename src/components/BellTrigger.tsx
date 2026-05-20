@@ -1,46 +1,48 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Coffee, X } from "lucide-react";
-import { useState } from "react";
+import { Cigarette, Coffee, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useEffect } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
+import { type BellKind, KIND_LABEL, TIMINGS } from "@/lib/bell";
 
 type User = { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null };
 
 const TIMING_OPTIONS = [
-  { value: "now", label: "지금" },
-  { value: "5min", label: "5분 뒤" },
-  { value: "10min", label: "10분 뒤" },
-  { value: "30min", label: "30분 뒤" },
-  { value: "1hour", label: "1시간 뒤" },
-] as const;
+  { value: "now" as const, label: "지금" },
+  { value: "5min" as const, label: "5분 뒤" },
+  { value: "10min" as const, label: "10분 뒤" },
+  { value: "30min" as const, label: "30분 뒤" },
+  { value: "1hour" as const, label: "1시간 뒤" },
+];
 
-export function CoffeeBellTrigger() {
+export function BellTrigger({ kind }: { kind: BellKind }) {
   const [open, setOpen] = useState(false);
+  const Icon = kind === "coffee" ? Coffee : Cigarette;
+  const label = `${KIND_LABEL[kind]} 벨`;
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
         className="relative w-10 h-10 rounded-full flex items-center justify-center hover:bg-cream-deep transition"
-        aria-label="커피 벨"
-        title="기습 커피 모임"
+        aria-label={label}
+        title={`기습 ${KIND_LABEL[kind]} 모임`}
       >
-        <Coffee className="w-5 h-5 text-ink" strokeWidth={2.4} />
+        <Icon className="w-5 h-5 text-ink" strokeWidth={2.4} />
       </button>
-      {open && <StartCoffeeBellModal onClose={() => setOpen(false)} />}
+      {open && <StartBellModal kind={kind} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function StartCoffeeBellModal({ onClose }: { onClose: () => void }) {
+function StartBellModal({ kind, onClose }: { kind: BellKind; onClose: () => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [timing, setTiming] = useState<typeof TIMING_OPTIONS[number]["value"]>("now");
+  const [timing, setTiming] = useState<(typeof TIMINGS)[number]>("now");
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -60,10 +62,10 @@ function StartCoffeeBellModal({ onClose }: { onClose: () => void }) {
 
   const start = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/coffee-bell", {
+      const res = await fetch("/api/bell/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ timing, targetIds: [...selected] }),
+        body: JSON.stringify({ kind, timing, targetIds: [...selected] }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? "시작 실패");
@@ -80,6 +82,9 @@ function StartCoffeeBellModal({ onClose }: { onClose: () => void }) {
     });
   }
 
+  const Icon = kind === "coffee" ? Coffee : Cigarette;
+  const verb = kind === "coffee" ? "커피 한 잔" : "흡연 한 대";
+
   const content = (
     <div
       className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm flex items-center justify-center p-4"
@@ -91,7 +96,7 @@ function StartCoffeeBellModal({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-cream-deep">
           <h2 className="font-display font-bold text-xl inline-flex items-center gap-2">
-            <Coffee className="w-5 h-5" /> 기습 커피
+            <Icon className="w-5 h-5" /> 기습 {verb}
           </h2>
           <button onClick={onClose} className="text-ink-soft hover:text-ink p-1">
             <X className="w-5 h-5" />
@@ -188,7 +193,7 @@ function StartCoffeeBellModal({ onClose }: { onClose: () => void }) {
             disabled={selected.size === 0 || start.isPending}
             size="sm"
           >
-            {start.isPending ? "보내는 중…" : "커피 벨 울리기"}
+            {start.isPending ? "보내는 중…" : `${KIND_LABEL[kind]} 벨 울리기`}
           </Button>
         </div>
       </div>

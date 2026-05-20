@@ -1,14 +1,15 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Coffee, Send, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Cigarette, Coffee, Send, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 import { getSupabaseBrowser } from "@/lib/supabase-client";
+import { type BellKind, KIND_LABEL } from "@/lib/bell";
 
 type Target = {
   id: string;
@@ -20,6 +21,7 @@ type Target = {
 
 type ActiveBell = {
   id: string;
+  kind: BellKind;
   initiator: { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null };
   timing: string;
   timingLabel: string;
@@ -40,10 +42,10 @@ type Message = {
 
 type Me = { id: string };
 
-export function CoffeeBellOverlay({ me }: { me: Me }) {
+export function BellOverlay({ me }: { me: Me }) {
   const qc = useQueryClient();
-  const [chatOpen, setChatOpen] = useState(false);
-  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; bellId: string } | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -52,36 +54,32 @@ export function CoffeeBellOverlay({ me }: { me: Me }) {
   }, []);
 
   const { data } = useQuery({
-    queryKey: ["coffee-bell-active"],
+    queryKey: ["bells-active"],
     queryFn: async () => {
-      const res = await fetch("/api/coffee-bell");
+      const res = await fetch("/api/bell/active");
       if (!res.ok) throw new Error("로드 실패");
-      return res.json() as Promise<{ bell: ActiveBell | null }>;
+      return res.json() as Promise<{ bells: ActiveBell[] }>;
     },
-    refetchInterval: 15000, // Realtime 폴백
+    refetchInterval: 15000,
   });
 
-  const bell = data?.bell ?? null;
+  const bells = useMemo(() => data?.bells ?? [], [data]);
+  const openBell = bells.find((b) => b.id === openId) ?? null;
 
-  // Realtime — CoffeeBell, CoffeeBellTarget 변경 시 active 쿼리 invalidate
   useEffect(() => {
     const sb = getSupabaseBrowser();
     if (!sb) return;
     const channel = sb
-      .channel("coffee-bell-room")
+      .channel("bells-room")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "CoffeeBell" },
-        () => {
-          qc.invalidateQueries({ queryKey: ["coffee-bell-active"] });
-        },
+        () => qc.invalidateQueries({ queryKey: ["bells-active"] }),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "CoffeeBellTarget" },
-        () => {
-          qc.invalidateQueries({ queryKey: ["coffee-bell-active"] });
-        },
+        () => qc.invalidateQueries({ queryKey: ["bells-active"] }),
       )
       .subscribe();
     return () => {
@@ -90,24 +88,24 @@ export function CoffeeBellOverlay({ me }: { me: Me }) {
   }, [qc]);
 
   const end = useMutation({
-    mutationFn: async () => {
-      if (!bell) return;
-      const res = await fetch(`/api/coffee-bell/${bell.id}`, { method: "DELETE" });
+    mutationFn: async (bellId: string) => {
+      const res = await fetch(`/api/bell/${bellId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("종료 실패");
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["coffee-bell-active"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bells-active"] }),
   });
 
-  // 벨 종료/사라지면 채팅도 닫기
+  // 현재 열려있는 채팅의 벨이 사라지면 닫기
   useEffect(() => {
-    if (!bell) {
+    if (openId && !bells.some((b) => b.id === openId)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (chatOpen) setChatOpen(false);
-      if (ctxMenu) setCtxMenu(null);
+      setOpenId(null);
     }
-  }, [bell, chatOpen, ctxMenu]);
+    if (ctxMenu && !bells.some((b) => b.id === ctxMenu.bellId)) {
+      setCtxMenu(null);
+    }
+  }, [bells, openId, ctxMenu]);
 
-  // 컨텍스트 메뉴 외부 클릭 시 닫기
   useEffect(() => {
     if (!ctxMenu) return;
     const close = () => setCtxMenu(null);
@@ -115,34 +113,41 @@ export function CoffeeBellOverlay({ me }: { me: Me }) {
     return () => document.removeEventListener("click", close);
   }, [ctxMenu]);
 
-  if (!mounted || !bell) return null;
+  if (!mounted || bells.length === 0) return null;
 
   const overlay = (
     <>
-      <button
-        onClick={() => setChatOpen(true)}
-        onContextMenu={(e) => {
-          if (!bell.isInitiator) return;
-          e.preventDefault();
-          setCtxMenu({ x: e.clientX, y: e.clientY });
-        }}
-        className={cn(
-          "fixed z-40 right-4 top-1/2 -translate-y-1/2",
-          "w-16 h-16 rounded-full bg-peach text-white shadow-pop-lg",
-          "flex flex-col items-center justify-center gap-0.5",
-          "hover:bg-peach-deep hover:scale-105 transition-all",
-          "animate-pulse-soft",
-        )}
-        title={bell.isInitiator ? "클릭: 채팅 · 우클릭: 종료" : "커피 채팅 열기"}
-        aria-label="커피 모임"
-      >
-        <Coffee className="w-5 h-5" strokeWidth={2.4} />
-        <span className="text-[11px] font-bold">
-          {bell.counts.available}/{bell.counts.total}
-        </span>
-      </button>
+      {/* 우측 중앙에 활성 벨 수만큼 sticky 버튼 세로 스택 */}
+      <div className="fixed z-40 right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3">
+        {bells.map((bell) => {
+          const Icon = bell.kind === "coffee" ? Coffee : Cigarette;
+          return (
+            <button
+              key={bell.id}
+              onClick={() => setOpenId(bell.id)}
+              onContextMenu={(e) => {
+                if (!bell.isInitiator) return;
+                e.preventDefault();
+                setCtxMenu({ x: e.clientX, y: e.clientY, bellId: bell.id });
+              }}
+              className={cn(
+                "w-16 h-16 rounded-full bg-peach text-white shadow-pop-lg",
+                "flex flex-col items-center justify-center gap-0.5",
+                "hover:bg-peach-deep hover:scale-105 transition-all animate-pulse-soft",
+              )}
+              title={bell.isInitiator ? "클릭: 채팅 · 우클릭: 종료" : `${KIND_LABEL[bell.kind]} 채팅 열기`}
+              aria-label={`${KIND_LABEL[bell.kind]} 모임`}
+            >
+              <Icon className="w-5 h-5" strokeWidth={2.4} />
+              <span className="text-[11px] font-bold">
+                {bell.counts.available}/{bell.counts.total}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-      {ctxMenu && bell.isInitiator && (
+      {ctxMenu && (
         <div
           style={{ position: "fixed", left: ctxMenu.x, top: ctxMenu.y, zIndex: 60 }}
           className="bg-white rounded-lg shadow-pop-lg border border-ink/10 py-1 min-w-[140px] animate-pop-in"
@@ -150,22 +155,23 @@ export function CoffeeBellOverlay({ me }: { me: Me }) {
         >
           <button
             onClick={() => {
+              const bellId = ctxMenu.bellId;
               setCtxMenu(null);
-              if (confirm("커피 모임을 종료할까요?")) end.mutate();
+              if (confirm("모임을 종료할까요?")) end.mutate(bellId);
             }}
             className="w-full text-left px-3 py-2 text-sm font-semibold text-bubblegum hover:bg-cream/60"
           >
-            커피 모임 종료
+            모임 종료
           </button>
         </div>
       )}
 
-      {chatOpen && (
-        <CoffeeBellChat
-          bell={bell}
+      {openBell && (
+        <BellChat
+          bell={openBell}
           me={me}
-          onClose={() => setChatOpen(false)}
-          onEnd={() => end.mutate()}
+          onClose={() => setOpenId(null)}
+          onEnd={() => end.mutate(openBell.id)}
         />
       )}
     </>
@@ -174,7 +180,7 @@ export function CoffeeBellOverlay({ me }: { me: Me }) {
   return createPortal(overlay, document.body);
 }
 
-function CoffeeBellChat({
+function BellChat({
   bell, me, onClose, onEnd,
 }: {
   bell: ActiveBell;
@@ -187,9 +193,9 @@ function CoffeeBellChat({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data } = useQuery({
-    queryKey: ["coffee-bell-messages", bell.id],
+    queryKey: ["bell-messages", bell.id],
     queryFn: async () => {
-      const res = await fetch(`/api/coffee-bell/${bell.id}/messages`);
+      const res = await fetch(`/api/bell/${bell.id}/messages`);
       if (!res.ok) throw new Error("로드 실패");
       return res.json() as Promise<{ messages: Message[] }>;
     },
@@ -197,12 +203,11 @@ function CoffeeBellChat({
   });
   const messages = data?.messages ?? [];
 
-  // Realtime 메시지 구독
   useEffect(() => {
     const sb = getSupabaseBrowser();
     if (!sb) return;
     const channel = sb
-      .channel(`coffee-bell-${bell.id}-msg`)
+      .channel(`bell-${bell.id}-msg`)
       .on(
         "postgres_changes",
         {
@@ -211,7 +216,7 @@ function CoffeeBellChat({
           table: "CoffeeBellMessage",
           filter: `coffeeBellId=eq.${bell.id}`,
         },
-        () => qc.invalidateQueries({ queryKey: ["coffee-bell-messages", bell.id] }),
+        () => qc.invalidateQueries({ queryKey: ["bell-messages", bell.id] }),
       )
       .subscribe();
     return () => {
@@ -226,7 +231,7 @@ function CoffeeBellChat({
 
   const send = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/coffee-bell/${bell.id}/messages`, {
+      const res = await fetch(`/api/bell/${bell.id}/messages`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ body: body.trim() }),
@@ -235,21 +240,23 @@ function CoffeeBellChat({
     },
     onSuccess: () => {
       setBody("");
-      qc.invalidateQueries({ queryKey: ["coffee-bell-messages", bell.id] });
+      qc.invalidateQueries({ queryKey: ["bell-messages", bell.id] });
     },
   });
 
   const toggleAvailable = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/coffee-bell/${bell.id}/respond`, {
+      const res = await fetch(`/api/bell/${bell.id}/respond`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ available: !bell.available }),
       });
       if (!res.ok) throw new Error("응답 실패");
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["coffee-bell-active"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bells-active"] }),
   });
+
+  const Icon = bell.kind === "coffee" ? Coffee : Cigarette;
 
   return (
     <div
@@ -261,10 +268,10 @@ function CoffeeBellChat({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 py-3 border-b border-cream-deep flex items-center gap-2.5">
-          <Coffee className="w-5 h-5 text-peach shrink-0" />
+          <Icon className="w-5 h-5 text-peach shrink-0" />
           <div className="flex-1 min-w-0">
             <h2 className="font-display font-bold text-lg leading-tight truncate">
-              {bell.initiator.displayName} 님의 커피
+              {bell.initiator.displayName} 님의 {KIND_LABEL[bell.kind]}
             </h2>
             <p className="text-[11px] text-ink-soft">
               {bell.timingLabel} · 가능 {bell.counts.available}/{bell.counts.total}
@@ -357,14 +364,14 @@ function CoffeeBellChat({
         {bell.isInitiator && (
           <button
             onClick={() => {
-              if (confirm("커피 모임을 종료할까요?")) {
+              if (confirm("모임을 종료할까요?")) {
                 onEnd();
                 onClose();
               }
             }}
             className="px-5 py-2.5 text-xs font-bold text-bubblegum hover:bg-cream/40 border-t border-cream-deep"
           >
-            커피 모임 종료
+            모임 종료
           </button>
         )}
       </div>

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireMe } from "@/lib/auth";
 
-/** 커피 벨 종료 — 이니시에이터만. */
+/** 벨 종료 — 이니시에이터만. */
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   let me;
   try { me = await requireMe(); }

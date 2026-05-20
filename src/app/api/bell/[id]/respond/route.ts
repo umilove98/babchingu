@@ -5,7 +5,6 @@ import { requireMe } from "@/lib/auth";
 
 const schema = z.object({ available: z.boolean() });
 
-/** '가능' 토글 — target 만 가능. */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   let me;
   try { me = await requireMe(); }

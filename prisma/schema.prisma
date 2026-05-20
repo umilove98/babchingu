@@ -146,10 +146,12 @@ model CustomHoliday {
   createdAt DateTime @default(now())
 }
 
-// 기습 커피 모임 — 전 조직 동시 1개. endedAt IS NULL 이면 활성.
+// 기습 모임 (커피/흡연) — 전 조직 동시 kind별 1개. endedAt IS NULL 이면 활성.
+// 테이블명은 호환성 유지 위해 CoffeeBell 그대로 사용.
 model CoffeeBell {
   id          String    @id @default(cuid())
   initiatorId String
+  kind        String    @default("coffee") // 'coffee' | 'smoke'
   timing      String    // 'now' | '5min' | '10min' | '30min' | '1hour'
   createdAt   DateTime  @default(now())
   endedAt     DateTime?
@@ -158,7 +160,7 @@ model CoffeeBell {
   targets   CoffeeBellTarget[]
   messages  CoffeeBellMessage[]
 
-  @@index([endedAt, createdAt])
+  @@index([kind, endedAt, createdAt])
 }
 
 model CoffeeBellTarget {
