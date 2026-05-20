@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useEffect } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 
 type User = { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null };
@@ -41,6 +42,7 @@ function StartCoffeeBellModal({ onClose }: { onClose: () => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [timing, setTiming] = useState<typeof TIMING_OPTIONS[number]["value"]>("now");
   const [mounted, setMounted] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -116,43 +118,61 @@ function StartCoffeeBellModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <div className="px-5 py-2 text-xs font-semibold text-ink-soft">
-          누구랑 ({selected.size}명 선택)
+        <div className="px-5 pt-3 pb-2 flex items-center gap-2">
+          <span className="text-xs font-semibold text-ink-soft shrink-0">
+            누구랑 ({selected.size})
+          </span>
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="이름으로 검색"
+            className="!h-9 text-sm"
+          />
         </div>
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <p className="p-10 text-center text-ink-soft text-sm">불러오는 중…</p>
-          ) : data?.users.length === 0 ? (
-            <p className="p-10 text-center text-ink-soft text-sm">선택할 사람이 없어요</p>
-          ) : (
-            <ul className="divide-y divide-cream-deep">
-              {data?.users.map((u) => {
-                const on = selected.has(u.id);
-                return (
-                  <li key={u.id}>
-                    <button
-                      onClick={() => toggle(u.id)}
-                      className={cn(
-                        "w-full text-left px-5 py-2.5 flex items-center gap-3 hover:bg-cream/60 transition",
-                        on && "bg-sky/30",
-                      )}
-                    >
-                      <Avatar seed={u.avatarSeed} url={u.avatarUrl} size="sm" />
-                      <span className="flex-1 font-semibold text-sm">{u.displayName}</span>
-                      <span
+          ) : (() => {
+            const q = query.trim().toLowerCase();
+            const filtered = q
+              ? (data?.users ?? []).filter((u) => u.displayName.toLowerCase().includes(q))
+              : (data?.users ?? []);
+            if ((data?.users ?? []).length === 0) {
+              return <p className="p-10 text-center text-ink-soft text-sm">선택할 사람이 없어요</p>;
+            }
+            if (filtered.length === 0) {
+              return <p className="p-10 text-center text-ink-soft text-sm">&apos;{query}&apos; 와 일치하는 사람이 없어요</p>;
+            }
+            return (
+              <ul className="divide-y divide-cream-deep">
+                {filtered.map((u) => {
+                  const on = selected.has(u.id);
+                  return (
+                    <li key={u.id}>
+                      <button
+                        onClick={() => toggle(u.id)}
                         className={cn(
-                          "w-5 h-5 rounded-md border-2 flex items-center justify-center",
-                          on ? "bg-peach-deep border-peach-deep text-white" : "border-ink/20",
+                          "w-full text-left px-5 py-2.5 flex items-center gap-3 hover:bg-cream/60 transition",
+                          on && "bg-sky/30",
                         )}
                       >
-                        {on && "✓"}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                        <Avatar seed={u.avatarSeed} url={u.avatarUrl} size="sm" />
+                        <span className="flex-1 font-semibold text-sm">{u.displayName}</span>
+                        <span
+                          className={cn(
+                            "w-5 h-5 rounded-md border-2 flex items-center justify-center",
+                            on ? "bg-peach-deep border-peach-deep text-white" : "border-ink/20",
+                          )}
+                        >
+                          {on && "✓"}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            );
+          })()}
         </div>
 
         {start.error && (

@@ -484,6 +484,7 @@ function DelegateHostButton({
 }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const delegate = useMutation({
     mutationFn: async (newHostId: string) => {
       const res = await fetch(`/api/parties/${partyId}`, {
@@ -496,9 +497,15 @@ function DelegateHostButton({
     },
     onSuccess: () => {
       setOpen(false);
+      setQuery("");
       qc.invalidateQueries({ queryKey: ["party", partyId] });
     },
   });
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? participants.filter((p) => p.displayName.toLowerCase().includes(q))
+    : participants;
 
   return (
     <>
@@ -526,13 +533,27 @@ function DelegateHostButton({
             <p className="px-5 pt-4 text-sm text-ink-soft">
               새 파티장을 선택해주세요. 위임 후엔 파티장 권한을 잃어요.
             </p>
-            <ul className="max-h-80 overflow-y-auto">
+            {participants.length > 0 && (
+              <div className="px-5 pt-3">
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="이름으로 검색"
+                  className="!h-9 text-sm"
+                />
+              </div>
+            )}
+            <ul className="max-h-80 overflow-y-auto mt-2">
               {participants.length === 0 ? (
                 <li className="px-5 py-10 text-center text-sm text-ink-soft">
                   위임할 수 있는 참가자가 없어요
                 </li>
+              ) : filtered.length === 0 ? (
+                <li className="px-5 py-10 text-center text-sm text-ink-soft">
+                  &apos;{query}&apos; 와 일치하는 참가자가 없어요
+                </li>
               ) : (
-                participants.map((p) => (
+                filtered.map((p) => (
                   <li key={p.id}>
                     <button
                       onClick={() => {
@@ -714,6 +735,7 @@ function InviteModal({ partyId, onClose }: { partyId: string; onClose: () => voi
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sent, setSent] = useState(false);
+  const [query, setQuery] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["invitable", partyId],
@@ -771,40 +793,58 @@ function InviteModal({ partyId, onClose }: { partyId: string; onClose: () => voi
             회원이 아닌 사람도 링크로 접속해서 이름만 적고 참가할 수 있어요
           </p>
         </div>
+        <div className="px-5 py-2 border-b border-cream-deep">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="이름으로 검색"
+            className="!h-9 text-sm"
+          />
+        </div>
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <p className="p-10 text-center text-ink-soft text-sm">불러오는 중…</p>
-          ) : data?.users.length === 0 ? (
-            <p className="p-10 text-center text-ink-soft text-sm">초대할 수 있는 사람이 없어요</p>
-          ) : (
-            <ul className="divide-y divide-cream-deep">
-              {data?.users.map((u) => {
-                const on = selected.has(u.id);
-                return (
-                  <li key={u.id}>
-                    <button
-                      onClick={() => toggle(u.id)}
-                      className={cn(
-                        "w-full text-left px-5 py-3 flex items-center gap-3 hover:bg-cream/60 transition",
-                        on && "bg-sky/30",
-                      )}
-                    >
-                      <Avatar seed={u.avatarSeed} url={u.avatarUrl} size="sm" />
-                      <span className="flex-1 font-semibold text-sm">{u.displayName}</span>
-                      <span
+          ) : (() => {
+            const q = query.trim().toLowerCase();
+            const filtered = q
+              ? (data?.users ?? []).filter((u) => u.displayName.toLowerCase().includes(q))
+              : (data?.users ?? []);
+            if ((data?.users ?? []).length === 0) {
+              return <p className="p-10 text-center text-ink-soft text-sm">초대할 수 있는 사람이 없어요</p>;
+            }
+            if (filtered.length === 0) {
+              return <p className="p-10 text-center text-ink-soft text-sm">&apos;{query}&apos; 와 일치하는 사람이 없어요</p>;
+            }
+            return (
+              <ul className="divide-y divide-cream-deep">
+                {filtered.map((u) => {
+                  const on = selected.has(u.id);
+                  return (
+                    <li key={u.id}>
+                      <button
+                        onClick={() => toggle(u.id)}
                         className={cn(
-                          "w-5 h-5 rounded-md border-2 flex items-center justify-center",
-                          on ? "bg-peach-deep border-peach-deep text-white" : "border-ink/20",
+                          "w-full text-left px-5 py-3 flex items-center gap-3 hover:bg-cream/60 transition",
+                          on && "bg-sky/30",
                         )}
                       >
-                        {on && "✓"}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                        <Avatar seed={u.avatarSeed} url={u.avatarUrl} size="sm" />
+                        <span className="flex-1 font-semibold text-sm">{u.displayName}</span>
+                        <span
+                          className={cn(
+                            "w-5 h-5 rounded-md border-2 flex items-center justify-center",
+                            on ? "bg-peach-deep border-peach-deep text-white" : "border-ink/20",
+                          )}
+                        >
+                          {on && "✓"}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            );
+          })()}
         </div>
         <div className="px-5 py-3 border-t border-cream-deep flex items-center justify-between gap-2">
           <span className="text-sm text-ink-soft">
