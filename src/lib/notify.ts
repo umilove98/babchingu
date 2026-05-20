@@ -224,25 +224,27 @@ export async function notifyInvited(partyId: string, inviterId: string, inviteeI
   });
 }
 
-/** 떠남 알림: 참가자가 파티에서 나가면 호스트에게 통지. host=null(도시락) 또는 host=본인일 땐 noop. */
+/** 떠남 알림: 외식이면 호스트에게만, 도시락(호스트 없음)이면 남은 참가자 전원에게. */
 export async function notifyLeft(partyId: string, leaverId: string) {
   const party = await prisma.party.findUnique({
     where: { id: partyId },
     select: { hostId: true, partyDate: true, kind: true, restaurantName: true },
   });
-  if (!party?.hostId || party.hostId === leaverId) return;
+  if (!party) return;
+  if (party.hostId === leaverId) return; // 안전장치
 
-  const filtered = await filterByPref([party.hostId], "notifParticipants");
-  if (filtered.length === 0) return;
+  const raw = party.hostId
+    ? [party.hostId]
+    : await recipientsOfParty(partyId, leaverId);
+  const recipients = await filterByPref(raw, "notifParticipants");
+  if (recipients.length === 0) return;
 
-  await prisma.notification.create({
-    data: { userId: party.hostId, kind: "left", partyId, actorId: leaverId },
-  });
+  await bulkInsert(recipients, "left", partyId, leaverId);
   const leaver = await prisma.profile.findUnique({
     where: { id: leaverId },
     select: { displayName: true },
   });
-  await sendPushToUsers(filtered, {
+  await sendPushToUsers(recipients, {
     title: `${leaver?.displayName ?? "누군가"} 님이 떠났어요`,
     body: partyLabel(party),
     url: `/party/${partyId}`,
