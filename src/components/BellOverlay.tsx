@@ -271,7 +271,7 @@ function BellChat({
           <Icon className="w-5 h-5 text-peach shrink-0" />
           <div className="flex-1 min-w-0">
             <h2 className="font-display font-bold text-lg leading-tight truncate">
-              {bell.initiator.displayName} 님의 {KIND_LABEL[bell.kind]}
+              {bell.initiator.displayName} 님의 {KIND_LABEL[bell.kind]} 모임
             </h2>
             <p className="text-[11px] text-ink-soft">
               {bell.timingLabel} · 가능 {bell.counts.available}/{bell.counts.total}
