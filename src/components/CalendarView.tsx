@@ -461,11 +461,21 @@ function EatoutCard({
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        {party.participants.length === 0 ? (
+      <div className="flex items-center justify-between gap-2">
+        {party.mapUrl ? (
+          <a
+            href={party.mapUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-medium inline-flex items-center gap-1 text-ink-soft hover:text-ink min-w-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MapPin className="w-3 h-3 shrink-0" /> 위치보기 <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+          </a>
+        ) : party.participants.length === 0 ? (
           <span className="text-xs text-ink-soft/70">참가자 모집 중</span>
         ) : <span />}
-        <div className="flex items-center gap-2 text-sm text-ink">
+        <div className="flex items-center gap-2 text-sm text-ink shrink-0">
           {party.commentCount > 0 && (
             <span className="flex items-center gap-0.5 text-ink-soft">
               <MessageCircle className="w-3.5 h-3.5" /> {party.commentCount}
@@ -474,18 +484,6 @@ function EatoutCard({
           <span className="font-semibold">{party.participants.length}명</span>
         </div>
       </div>
-
-      {party.mapUrl && (
-        <a
-          href={party.mapUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 text-xs font-medium inline-flex items-center gap-1 text-ink-soft hover:text-ink"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <MapPin className="w-3 h-3" /> 위치보기 <ExternalLink className="w-2.5 h-2.5" />
-        </a>
-      )}
 
       {ctxMenu && (
         <div
