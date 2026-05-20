@@ -627,7 +627,7 @@ function CopyLinkButton({ partyId }: { partyId: string }) {
         "w-full inline-flex items-center justify-center gap-2 text-sm font-bold rounded-lg px-3 py-2.5 transition",
         copied
           ? "bg-mint/40 text-ink"
-          : "bg-peach text-ink hover:bg-peach-deep hover:text-white",
+          : "bg-peach text-white hover:bg-peach-deep",
       )}
     >
       {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
