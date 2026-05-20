@@ -24,12 +24,20 @@ model Profile {
   isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
 
+  // 알림 수신 환경설정 — 끄면 in-app + push 둘 다 수신 안 함.
+  // invited / change_requested / change_approved / change_rejected /
+  // restaurant_changed 는 고정 ON 으로 컬럼 없음.
+  notifParticipants Boolean @default(true)  // new_member, left
+  notifComments     Boolean @default(true)  // new_comment
+  notifNewParties   Boolean @default(true)  // party_created
+
   hostedParties      Party[]                   @relation("PartyHost")
   participations     Participation[]
   comments           Comment[]
   changeRequests     RestaurantChangeRequest[]
   notificationsRecv  Notification[]            @relation("NotifReceiver")
   notificationsActed Notification[]            @relation("NotifActor")
+  pushSubscriptions  PushSubscription[]
 }
 
 model Party {
@@ -117,4 +125,18 @@ model CustomHoliday {
   reason    String
   createdBy String?
   createdAt DateTime @default(now())
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String   // Web Push Encryption public key
+  auth      String   // Web Push auth secret
+  userAgent String?  // 디버깅용 (어떤 브라우저/기기)
+  createdAt DateTime @default(now())
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

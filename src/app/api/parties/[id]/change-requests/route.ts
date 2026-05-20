@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireMe } from "@/lib/auth";
-import { notifyChangeRequested, notifyRestaurantChanged } from "@/lib/notify";
+import {
+  notifyChangeApproved,
+  notifyChangeRejected,
+  notifyChangeRequested,
+  notifyRestaurantChanged,
+} from "@/lib/notify";
 
 const postSchema = z.object({
   newName: z.string().min(1).max(80),
@@ -82,12 +87,15 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         data: { status: "approved", resolvedAt: now },
       }),
     ]);
-    await notifyRestaurantChanged(partyId, before, request.newName);
+    // 제안자에겐 승인 알림, 나머지 참가자에겐 변경 알림 (중복 방지)
+    await notifyChangeApproved(partyId, request.requesterId, request.newName);
+    await notifyRestaurantChanged(partyId, before, request.newName, request.requesterId);
   } else {
     await prisma.restaurantChangeRequest.update({
       where: { id: request.id },
       data: { status: "rejected", resolvedAt: now },
     });
+    await notifyChangeRejected(partyId, request.requesterId, request.newName);
   }
   return NextResponse.json({ ok: true });
 }

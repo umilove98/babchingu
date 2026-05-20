@@ -24,7 +24,16 @@ export async function GET() {
 
   const items = rows.map((n) => ({
     id: n.id,
-    kind: n.kind as "new_member" | "new_comment" | "change_requested" | "restaurant_changed" | "invited" | "left",
+    kind: n.kind as
+      | "new_member"
+      | "new_comment"
+      | "change_requested"
+      | "change_approved"
+      | "change_rejected"
+      | "restaurant_changed"
+      | "invited"
+      | "left"
+      | "party_created",
     partyId: n.partyId,
     actorName: n.actor?.displayName ?? null,
     actorSeed: n.actor?.avatarSeed ?? null,

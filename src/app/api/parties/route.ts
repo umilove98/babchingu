@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireMe } from "@/lib/auth";
 import { isHoliday } from "@/lib/holidays";
 import { isPast, toKstDateString } from "@/lib/date";
+import { notifyPartyCreated } from "@/lib/notify";
 
 const schema = z.object({
   partyDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -44,6 +45,8 @@ export async function POST(req: Request) {
     },
     select: { id: true },
   });
+
+  await notifyPartyCreated(party.id, me.id);
 
   return NextResponse.json({ ok: true, id: party.id });
 }
