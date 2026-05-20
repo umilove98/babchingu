@@ -1,0 +1,180 @@
+"use client";
+
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Coffee, X } from "lucide-react";
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { useEffect } from "react";
+import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
+
+type User = { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null };
+
+const TIMING_OPTIONS = [
+  { value: "now", label: "지금" },
+  { value: "5min", label: "5분 뒤" },
+  { value: "10min", label: "10분 뒤" },
+  { value: "30min", label: "30분 뒤" },
+  { value: "1hour", label: "1시간 뒤" },
+] as const;
+
+export function CoffeeBellTrigger() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="relative w-10 h-10 rounded-full flex items-center justify-center hover:bg-cream-deep transition"
+        aria-label="커피 벨"
+        title="기습 커피 모임"
+      >
+        <Coffee className="w-5 h-5 text-ink" strokeWidth={2.4} />
+      </button>
+      {open && <StartCoffeeBellModal onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+function StartCoffeeBellModal({ onClose }: { onClose: () => void }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [timing, setTiming] = useState<typeof TIMING_OPTIONS[number]["value"]>("now");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["users-all"],
+    queryFn: async () => {
+      const res = await fetch("/api/users");
+      if (!res.ok) throw new Error("로드 실패");
+      return res.json() as Promise<{ users: User[] }>;
+    },
+  });
+
+  const start = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/coffee-bell", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ timing, targetIds: [...selected] }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "시작 실패");
+    },
+    onSuccess: onClose,
+  });
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const content = (
+    <div
+      className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-pop-lg border-2 border-white w-full max-w-md max-h-[85vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-deep">
+          <h2 className="font-display font-bold text-xl inline-flex items-center gap-2">
+            <Coffee className="w-5 h-5" /> 기습 커피
+          </h2>
+          <button onClick={onClose} className="text-ink-soft hover:text-ink p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-3 border-b border-cream-deep">
+          <p className="text-xs font-semibold text-ink-soft mb-2">언제</p>
+          <div className="flex flex-wrap gap-1.5">
+            {TIMING_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setTiming(opt.value)}
+                className={cn(
+                  "text-xs font-bold rounded-full px-3 py-1.5 transition",
+                  timing === opt.value
+                    ? "bg-peach text-white"
+                    : "bg-cream-deep text-ink hover:bg-butter",
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="px-5 py-2 text-xs font-semibold text-ink-soft">
+          누구랑 ({selected.size}명 선택)
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <p className="p-10 text-center text-ink-soft text-sm">불러오는 중…</p>
+          ) : data?.users.length === 0 ? (
+            <p className="p-10 text-center text-ink-soft text-sm">선택할 사람이 없어요</p>
+          ) : (
+            <ul className="divide-y divide-cream-deep">
+              {data?.users.map((u) => {
+                const on = selected.has(u.id);
+                return (
+                  <li key={u.id}>
+                    <button
+                      onClick={() => toggle(u.id)}
+                      className={cn(
+                        "w-full text-left px-5 py-2.5 flex items-center gap-3 hover:bg-cream/60 transition",
+                        on && "bg-sky/30",
+                      )}
+                    >
+                      <Avatar seed={u.avatarSeed} url={u.avatarUrl} size="sm" />
+                      <span className="flex-1 font-semibold text-sm">{u.displayName}</span>
+                      <span
+                        className={cn(
+                          "w-5 h-5 rounded-md border-2 flex items-center justify-center",
+                          on ? "bg-peach-deep border-peach-deep text-white" : "border-ink/20",
+                        )}
+                      >
+                        {on && "✓"}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {start.error && (
+          <p className="px-5 py-2 text-sm text-bubblegum">{start.error.message}</p>
+        )}
+
+        <div className="px-5 py-3 border-t border-cream-deep flex items-center justify-between gap-2">
+          <span className="text-sm text-ink-soft">
+            {selected.size}/{data?.users.length ?? 0}
+          </span>
+          <Button
+            onClick={() => start.mutate()}
+            disabled={selected.size === 0 || start.isPending}
+            size="sm"
+          >
+            {start.isPending ? "보내는 중…" : "커피 벨 울리기"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!mounted) return null;
+  return createPortal(content, document.body);
+}

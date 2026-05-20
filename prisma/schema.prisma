@@ -31,13 +31,16 @@ model Profile {
   notifComments     Boolean @default(true)  // new_comment
   notifNewParties   Boolean @default(true)  // party_created
 
-  hostedParties      Party[]                   @relation("PartyHost")
-  participations     Participation[]
-  comments           Comment[]
-  changeRequests     RestaurantChangeRequest[]
-  notificationsRecv  Notification[]            @relation("NotifReceiver")
-  notificationsActed Notification[]            @relation("NotifActor")
-  pushSubscriptions  PushSubscription[]
+  hostedParties        Party[]                   @relation("PartyHost")
+  participations       Participation[]
+  comments             Comment[]
+  changeRequests       RestaurantChangeRequest[]
+  notificationsRecv    Notification[]            @relation("NotifReceiver")
+  notificationsActed   Notification[]            @relation("NotifActor")
+  pushSubscriptions    PushSubscription[]
+  coffeeBellsInitiated CoffeeBell[]              @relation("CoffeeBellInitiator")
+  coffeeBellTargets    CoffeeBellTarget[]
+  coffeeBellMessages   CoffeeBellMessage[]
 }
 
 model Party {
@@ -141,6 +144,47 @@ model CustomHoliday {
   reason    String
   createdBy String?
   createdAt DateTime @default(now())
+}
+
+// 기습 커피 모임 — 전 조직 동시 1개. endedAt IS NULL 이면 활성.
+model CoffeeBell {
+  id          String    @id @default(cuid())
+  initiatorId String
+  timing      String    // 'now' | '5min' | '10min' | '30min' | '1hour'
+  createdAt   DateTime  @default(now())
+  endedAt     DateTime?
+
+  initiator Profile             @relation("CoffeeBellInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  targets   CoffeeBellTarget[]
+  messages  CoffeeBellMessage[]
+
+  @@index([endedAt, createdAt])
+}
+
+model CoffeeBellTarget {
+  coffeeBellId String
+  userId       String
+  available    Boolean   @default(false)
+  respondedAt  DateTime?
+
+  coffeeBell CoffeeBell @relation(fields: [coffeeBellId], references: [id], onDelete: Cascade)
+  user       Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([coffeeBellId, userId])
+  @@index([userId])
+}
+
+model CoffeeBellMessage {
+  id           String   @id @default(cuid())
+  coffeeBellId String
+  userId       String
+  body         String
+  createdAt    DateTime @default(now())
+
+  coffeeBell CoffeeBell @relation(fields: [coffeeBellId], references: [id], onDelete: Cascade)
+  user       Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([coffeeBellId, createdAt])
 }
 
 model PushSubscription {

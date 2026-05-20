@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
+import { CoffeeBellOverlay } from "@/components/CoffeeBellOverlay";
+import { CoffeeBellTrigger } from "@/components/CoffeeBellTrigger";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ProfileModal } from "@/components/ProfileModal";
 
@@ -53,6 +55,7 @@ export function Header({ me }: { me: Me }) {
             </Link>
           )}
 
+          <CoffeeBellTrigger />
           <NotificationBell />
 
           <div className="relative">
@@ -117,6 +120,7 @@ export function Header({ me }: { me: Me }) {
       </div>
 
       {profileOpen && <ProfileModal me={me} onClose={() => setProfileOpen(false)} />}
+      <CoffeeBellOverlay me={{ id: me.id }} />
     </header>
   );
 }
