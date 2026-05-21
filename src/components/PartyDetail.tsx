@@ -167,13 +167,15 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
               )}
             </div>
           </div>
-          <div className="flex flex-col gap-2 items-end">
+          <div className="flex flex-col gap-2 items-end shrink-0">
             <Button
               variant={joined ? "outline" : "primary"}
               onClick={() => (joined ? leave.mutate() : join.mutate())}
               disabled={join.isPending || leave.isPending}
+              className="whitespace-nowrap"
             >
-              {joined ? "참가 취소" : "나도 참가"}
+              <span className="sm:hidden">{joined ? "취소" : "참가"}</span>
+              <span className="hidden sm:inline">{joined ? "참가 취소" : "나도 참가"}</span>
             </Button>
             {(joined || isHost) && (
               <InviteButton partyId={partyId} />
@@ -722,9 +724,11 @@ function InviteButton({ partyId }: { partyId: string }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-ink bg-white/70 hover:bg-white rounded-full px-3 py-1.5"
+        aria-label="초대하기"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-ink bg-white/70 hover:bg-white rounded-full px-2.5 sm:px-3 py-1.5 whitespace-nowrap"
       >
-        <UserPlus className="w-3.5 h-3.5" /> 초대하기
+        <UserPlus className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">초대하기</span>
       </button>
       {open && <InviteModal partyId={partyId} onClose={() => setOpen(false)} />}
     </>
