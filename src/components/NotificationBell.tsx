@@ -168,7 +168,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-[22rem] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-pop-lg border-2 border-white overflow-hidden animate-pop-in">
+        <div className="fixed inset-x-2 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-pop-lg border-2 border-white overflow-hidden animate-pop-in">
           <div className="px-4 py-3 flex items-center justify-between border-b border-cream-deep">
             {settingsView ? (
               <button
