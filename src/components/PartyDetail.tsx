@@ -8,6 +8,7 @@ import { Check, ChevronLeft, Copy, ExternalLink, MapPin, Send, Trash2, UserPlus,
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { UserTrigger } from "@/components/UserTrigger";
 import { cn } from "@/lib/utils";
 import { formatKoreanDate } from "@/lib/date";
 
@@ -122,8 +123,10 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
         </h1>
         {data.kind === "eatout" && data.host && (
           <div className="flex items-center gap-2 mt-3 text-sm flex-wrap">
-            <Avatar seed={data.host.avatarSeed} url={data.host.avatarUrl} size="sm" />
-            <span className="text-ink-soft">파티장 <strong className="text-ink">{data.host.displayName}</strong></span>
+            <UserTrigger userId={data.host.id}>
+              <Avatar seed={data.host.avatarSeed} url={data.host.avatarUrl} size="sm" />
+              <span className="text-ink-soft">파티장 <strong className="text-ink">{data.host.displayName}</strong></span>
+            </UserTrigger>
             {isHost && data.participants.length > 0 && (
               <DelegateHostButton
                 partyId={partyId}
@@ -152,10 +155,14 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
               ) : (
                 <>
                   {data.participants.map((p) => (
-                    <div key={p.id} className="flex items-center gap-1.5 bg-white/70 pl-1 pr-3 py-1 rounded-full">
+                    <UserTrigger
+                      key={p.id}
+                      userId={p.id}
+                      className="bg-white/70 pl-1 pr-3 py-1 rounded-full"
+                    >
                       <Avatar seed={p.avatarSeed} url={p.avatarUrl} size="sm" />
                       <span className="text-xs font-semibold">{p.displayName}</span>
-                    </div>
+                    </UserTrigger>
                   ))}
                   {data.guests.map((g) => (
                     <div key={g.id} className="flex items-center gap-1.5 bg-white/60 pl-2.5 pr-3 py-1 rounded-full border border-dashed border-ink/15">
@@ -297,13 +304,17 @@ function CommentsSection({
                   {!isMine && (
                     <div className="w-8 shrink-0">
                       {showHeader && (
-                        <Avatar seed={c.user.avatarSeed} url={c.user.avatarUrl} size="sm" />
+                        <UserTrigger userId={c.user.id} className="!gap-0">
+                          <Avatar seed={c.user.avatarSeed} url={c.user.avatarUrl} size="sm" />
+                        </UserTrigger>
                       )}
                     </div>
                   )}
                   <div className={cn("flex flex-col min-w-0 max-w-[75%]", isMine ? "items-end" : "items-start")}>
                     {!isMine && showHeader && (
-                      <strong className="text-xs text-ink-soft mb-1 px-1">{c.user.displayName}</strong>
+                      <UserTrigger userId={c.user.id} className="mb-1 px-1">
+                        <strong className="text-xs text-ink-soft">{c.user.displayName}</strong>
+                      </UserTrigger>
                     )}
                     <div className={cn("flex items-end gap-1.5", isMine ? "flex-row-reverse" : "flex-row")}>
                       <div
@@ -431,8 +442,10 @@ function ChangeRequestsSection({
           {pendingRequests.map((r) => (
             <li key={r.id} className="bg-lavender/20 rounded-xl p-3 border border-lavender/40">
               <div className="flex items-center gap-2 text-sm">
-                <Avatar seed={r.requester.avatarSeed} url={r.requester.avatarUrl} size="sm" />
-                <span><strong>{r.requester.displayName}</strong> 님이 제안</span>
+                <UserTrigger userId={r.requester.id}>
+                  <Avatar seed={r.requester.avatarSeed} url={r.requester.avatarUrl} size="sm" />
+                  <span><strong>{r.requester.displayName}</strong> 님이 제안</span>
+                </UserTrigger>
               </div>
               <p className="mt-2 text-[15px]">
                 <span className="text-ink-soft">'{currentName || "현재"}'</span> →{" "}

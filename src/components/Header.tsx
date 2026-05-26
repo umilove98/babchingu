@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { BellOverlay } from "@/components/BellOverlay";
 import { BellTrigger } from "@/components/BellTrigger";
 import { NotificationBell } from "@/components/NotificationBell";
-import { ProfileModal } from "@/components/ProfileModal";
+import { useProfileViewer } from "@/components/ProfileViewer";
 
 type Me = {
   id: string;
@@ -20,15 +18,7 @@ type Me = {
 };
 
 export function Header({ me }: { me: Me }) {
-  const router = useRouter();
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
-    router.refresh();
-  }
+  const { openProfile } = useProfileViewer();
 
   return (
     <header className="sticky top-0 z-30 bg-cream/85 backdrop-blur-md border-b-2 border-white">
@@ -59,46 +49,17 @@ export function Header({ me }: { me: Me }) {
           <BellTrigger kind="smoke" />
           <NotificationBell />
 
-          <div className="relative">
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              className="flex items-center gap-2 px-2 py-1 rounded-full hover:bg-cream-deep transition"
-              title="프로필"
-            >
-              <Avatar seed={me.avatarSeed} url={me.avatarUrl} size="sm" />
-              <span className="text-sm font-semibold hidden sm:inline">
-                {me.displayName}
-              </span>
-            </button>
-            {menuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-30"
-                  onClick={() => setMenuOpen(false)}
-                />
-                <div className="absolute right-0 top-12 z-40 bg-white rounded-xl shadow-pop-lg border-2 border-white overflow-hidden w-44 animate-pop-in">
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setProfileOpen(true);
-                    }}
-                    className="block w-full text-left px-4 py-2.5 text-sm font-semibold text-ink hover:bg-cream/60"
-                  >
-                    프로필 편집
-                  </button>
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      logout();
-                    }}
-                    className="block w-full text-left px-4 py-2.5 text-sm font-semibold text-ink hover:bg-cream/60 border-t border-cream-deep"
-                  >
-                    로그아웃
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => openProfile(me.id)}
+            className="flex items-center gap-2 px-2 py-1 rounded-full hover:bg-cream-deep transition"
+            title="내 프로필"
+          >
+            <Avatar seed={me.avatarSeed} url={me.avatarUrl} size="sm" />
+            <span className="text-sm font-semibold hidden sm:inline">
+              {me.displayName}
+            </span>
+          </button>
         </nav>
       </div>
 
@@ -120,7 +81,6 @@ export function Header({ me }: { me: Me }) {
         )}
       </div>
 
-      {profileOpen && <ProfileModal me={me} onClose={() => setProfileOpen(false)} />}
       <BellOverlay me={{ id: me.id }} />
     </header>
   );

@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, MessageCircle, MapPin, Plus, X
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { UserTrigger } from "@/components/UserTrigger";
 import { cn } from "@/lib/utils";
 import {
   currentIsoWeek,
@@ -451,10 +452,10 @@ function EatoutCard({
             <span className="font-bold text-base truncate">{party.restaurantName || "(이름 없음)"}</span>
           </div>
           {party.host && (
-            <div className="flex items-center gap-1 text-xs text-ink-soft">
+            <UserTrigger userId={party.host.id} className="flex items-center gap-1 text-xs text-ink-soft">
               <Avatar seed={party.host.avatarSeed} url={party.host.avatarUrl} size="sm" className="!w-4 !h-4 !ring-0" />
               <span className="truncate">{party.host.displayName}</span>
-            </div>
+            </UserTrigger>
           )}
         </div>
         <div onClick={(e) => e.stopPropagation()}>

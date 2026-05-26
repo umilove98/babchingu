@@ -1,6 +1,7 @@
 import { getMeOrRedirect } from "@/lib/auth";
 import { Header } from "@/components/Header";
 import { Providers } from "@/components/Providers";
+import { ProfileViewerProvider } from "@/components/ProfileViewer";
 
 export default async function AppLayout({
   children,
@@ -10,10 +11,12 @@ export default async function AppLayout({
   const me = await getMeOrRedirect();
   return (
     <Providers>
-      <Header me={me} />
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-20">
-        {children}
-      </main>
+      <ProfileViewerProvider>
+        <Header me={me} />
+        <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-20">
+          {children}
+        </main>
+      </ProfileViewerProvider>
     </Providers>
   );
 }

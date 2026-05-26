@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { UserTrigger } from "@/components/UserTrigger";
 import { cn } from "@/lib/utils";
 import { getSupabaseBrowser } from "@/lib/supabase-client";
 import { type BellKind, KIND_LABEL } from "@/lib/bell";
@@ -314,11 +315,15 @@ function BellChat({
                     )}
                   >
                     {!isMine && (
-                      <Avatar seed={m.user.avatarSeed} url={m.user.avatarUrl} size="sm" />
+                      <UserTrigger userId={m.user.id} className="!gap-0">
+                        <Avatar seed={m.user.avatarSeed} url={m.user.avatarUrl} size="sm" />
+                      </UserTrigger>
                     )}
                     <div className={cn("flex flex-col min-w-0 max-w-[75%]", isMine ? "items-end" : "items-start")}>
                       {!isMine && (
-                        <strong className="text-[11px] text-ink-soft mb-0.5 px-1">{m.user.displayName}</strong>
+                        <UserTrigger userId={m.user.id} className="mb-0.5 px-1">
+                          <strong className="text-[11px] text-ink-soft">{m.user.displayName}</strong>
+                        </UserTrigger>
                       )}
                       <div
                         className={cn(

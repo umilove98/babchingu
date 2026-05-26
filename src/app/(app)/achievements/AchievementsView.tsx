@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar } from "@/components/ui/Avatar";
+import { UserTrigger } from "@/components/UserTrigger";
 import { cn } from "@/lib/utils";
 
 type Person = { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null };
@@ -99,8 +100,10 @@ function RankCard({
               <span className="text-xl w-6 text-center" aria-hidden>
                 {MEDALS[r.rank - 1] ?? r.rank}
               </span>
-              <Avatar seed={r.user.avatarSeed} url={r.user.avatarUrl} size="sm" />
-              <span className="flex-1 font-bold text-sm">{r.user.displayName}</span>
+              <UserTrigger userId={r.user.id} className="flex-1 gap-2">
+                <Avatar seed={r.user.avatarSeed} url={r.user.avatarUrl} size="sm" />
+                <span className="font-bold text-sm">{r.user.displayName}</span>
+              </UserTrigger>
               <span className={cn("text-xs font-bold text-ink rounded-full px-2.5 py-0.5", a.chip)}>
                 {r.count}{unit}
               </span>
@@ -140,10 +143,14 @@ function BestPartyCard({ party }: { party: BestParty | null }) {
           </div>
           <div className="flex flex-wrap gap-2">
             {party.participants.map((p) => (
-              <div key={p.id} className="flex items-center gap-1.5 bg-cream/80 pl-1 pr-3 py-1 rounded-full">
+              <UserTrigger
+                key={p.id}
+                userId={p.id}
+                className="bg-cream/80 pl-1 pr-3 py-1 rounded-full"
+              >
                 <Avatar seed={p.avatarSeed} url={p.avatarUrl} size="sm" />
                 <span className="text-xs font-semibold">{p.displayName}</span>
-              </div>
+              </UserTrigger>
             ))}
           </div>
         </Link>

@@ -14,15 +14,17 @@ create extension if not exists "uuid-ossp";
 -- ------------------------------------------------------------
 
 create table profiles (
-  id            uuid primary key default uuid_generate_v4(),
-  username      text unique not null,
-  display_name  text not null,
-  password_hash text not null,
-  avatar_seed   text not null,
-  avatar_url    text,
-  can_host      boolean not null default false,
-  is_admin      boolean not null default false,
-  created_at    timestamptz not null default now()
+  id              uuid primary key default uuid_generate_v4(),
+  username        text unique not null,
+  display_name    text not null,
+  password_hash   text not null,
+  avatar_seed     text not null,
+  avatar_url      text,
+  can_host        boolean not null default false,
+  is_admin        boolean not null default false,
+  favorite_menus  text not null default '',
+  disliked_menus  text not null default '',
+  created_at      timestamptz not null default now()
 );
 
 create table parties (

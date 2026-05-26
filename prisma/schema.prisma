@@ -31,6 +31,10 @@ model Profile {
   notifComments     Boolean @default(true)  // new_comment
   notifNewParties   Boolean @default(true)  // party_created
 
+  // 프로필 메뉴 태그 — 콤마로 구분된 짧은 키워드 (해시태그 형식). 공개.
+  favoriteMenus String @default("")
+  dislikedMenus String @default("")
+
   hostedParties        Party[]                   @relation("PartyHost")
   participations       Participation[]
   comments             Comment[]
