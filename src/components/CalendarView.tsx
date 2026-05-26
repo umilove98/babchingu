@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { UserTrigger } from "@/components/UserTrigger";
 import { cn } from "@/lib/utils";
+import { getSupabaseBrowser } from "@/lib/supabase-client";
 import {
   currentIsoWeek,
   formatKoreanDate,
@@ -69,6 +70,23 @@ export function CalendarView({ me, initialWeek }: { me: Me; initialWeek: string 
       return res.json() as Promise<WeekData>;
     },
   });
+
+  // 실시간 — 외식 추가/삭제, 참가자·손님 변동을 자동 반영
+  useEffect(() => {
+    const sb = getSupabaseBrowser();
+    if (!sb) return;
+    const invalidate = () => qc.invalidateQueries({ queryKey: ["week"] });
+    const channel = sb
+      .channel("week-room")
+      .on("postgres_changes", { event: "*", schema: "public", table: "Party" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "Participation" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "GuestParticipation" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "Comment" }, invalidate)
+      .subscribe();
+    return () => {
+      sb.removeChannel(channel);
+    };
+  }, [qc]);
 
   const joinEatout = useMutation({
     mutationFn: async (partyId: string) => {

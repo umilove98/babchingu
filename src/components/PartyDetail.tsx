@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { UserTrigger } from "@/components/UserTrigger";
 import { cn } from "@/lib/utils";
 import { formatKoreanDate } from "@/lib/date";
+import { getSupabaseBrowser } from "@/lib/supabase-client";
 
 type Me = { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null; canHost: boolean };
 type Person = { id: string; displayName: string; avatarSeed: string; avatarUrl?: string | null };
@@ -49,6 +50,25 @@ export function PartyDetail({ me, partyId }: { me: Me; partyId: string }) {
       return res.json() as Promise<Party>;
     },
   });
+
+  // 실시간 — 이 파티의 참가자·손님·댓글·변경제안·식당명 변경을 자동 반영
+  useEffect(() => {
+    const sb = getSupabaseBrowser();
+    if (!sb) return;
+    const invalidate = () => qc.invalidateQueries({ queryKey: ["party", partyId] });
+    const filter = `partyId=eq.${partyId}`;
+    const channel = sb
+      .channel(`party-${partyId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "Participation", filter }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "GuestParticipation", filter }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "Comment", filter }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "RestaurantChangeRequest", filter }, invalidate)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "Party", filter: `id=eq.${partyId}` }, invalidate)
+      .subscribe();
+    return () => {
+      sb.removeChannel(channel);
+    };
+  }, [partyId, qc]);
 
   const join = useMutation({
     mutationFn: async () => {
