@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Check, Heart, LogOut, Pencil, Settings, ThumbsDown, Trophy, UtensilsCrossed, X } from "lucide-react";
+import { Check, Heart, KeyRound, LogOut, Pencil, ThumbsDown, Trash2, Trophy, Upload, UtensilsCrossed, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { ProfileModal } from "@/components/ProfileModal";
+import { Input } from "@/components/ui/Input";
+import { PasswordChangeModal } from "@/components/PasswordChangeModal";
 import { cn } from "@/lib/utils";
 
 type ProfileData = {
@@ -110,10 +111,7 @@ function ProfileBody({ data }: { data: ProfileData }) {
   return (
     <div className="space-y-5">
       {/* 헤더 */}
-      <div className="flex flex-col items-center gap-3">
-        <Avatar seed={data.avatarSeed} url={data.avatarUrl} size="lg" className="!w-24 !h-24" />
-        <h3 className="font-display font-bold text-2xl">{data.displayName}</h3>
-      </div>
+      {data.isMe ? <SelfHeader data={data} /> : <ViewHeader data={data} />}
 
       {/* 통계 */}
       <div className="grid grid-cols-2 gap-2">
@@ -171,14 +169,78 @@ function ProfileBody({ data }: { data: ProfileData }) {
         emptyText={data.isMe ? "싫어하는 메뉴를 추가해보세요" : "아직 적어두지 않았어요"}
       />
 
-      {data.isMe && <SelfActions data={data} />}
     </div>
   );
 }
 
-function SelfActions({ data }: { data: ProfileData }) {
+function ViewHeader({ data }: { data: ProfileData }) {
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <Avatar seed={data.avatarSeed} url={data.avatarUrl} size="lg" className="!w-24 !h-24" />
+      <h3 className="font-display font-bold text-2xl">{data.displayName}</h3>
+    </div>
+  );
+}
+
+function SelfHeader({ data }: { data: ProfileData }) {
   const router = useRouter();
-  const [editOpen, setEditOpen] = useState(false);
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(data.displayName);
+  const [error, setError] = useState<string | null>(null);
+  const [pwOpen, setPwOpen] = useState(false);
+
+  function refreshProfile() {
+    qc.invalidateQueries({ queryKey: ["user-profile"] });
+    router.refresh();
+  }
+
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("avatar", file);
+      const res = await fetch("/api/me", { method: "POST", body: fd });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "업로드 실패");
+    },
+    onSuccess: refreshProfile,
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const removeAvatar = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/me", { method: "DELETE" });
+      if (!res.ok) throw new Error("삭제 실패");
+    },
+    onSuccess: refreshProfile,
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const saveName = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/me", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ displayName: nameDraft.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "이름 변경 실패");
+    },
+    onSuccess: () => {
+      setEditingName(false);
+      refreshProfile();
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setError(null);
+    upload.mutate(f);
+    e.target.value = "";
+  }
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -186,34 +248,110 @@ function SelfActions({ data }: { data: ProfileData }) {
     router.refresh();
   }
 
+  const uploadBusy = upload.isPending || removeAvatar.isPending;
+
   return (
-    <>
-      <div className="border-t border-cream-deep pt-4 flex gap-2 justify-between">
+    <div className="flex flex-col items-center gap-3">
+      <Avatar seed={data.avatarSeed} url={data.avatarUrl} size="lg" className="!w-24 !h-24" />
+
+      <div className="flex gap-2">
         <button
-          onClick={() => setEditOpen(true)}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink bg-cream-deep hover:bg-butter rounded-full px-3.5 py-2 transition"
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploadBusy}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink bg-cream-deep hover:bg-butter rounded-full px-3 py-1.5 disabled:opacity-50"
         >
-          <Settings className="w-4 h-4" /> 프로필 설정
+          <Upload className="w-3.5 h-3.5" />
+          {upload.isPending ? "업로드 중…" : "이미지 업로드"}
+        </button>
+        {data.avatarUrl && (
+          <button
+            type="button"
+            onClick={() => removeAvatar.mutate()}
+            disabled={uploadBusy}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft bg-cream-deep hover:bg-bubblegum hover:text-white rounded-full px-3 py-1.5 disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> 기본 아바타
+          </button>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onChange={onFile}
+          className="hidden"
+        />
+      </div>
+
+      {editingName ? (
+        <form
+          className="flex items-center gap-2 w-full max-w-xs"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (nameDraft.trim() && nameDraft.trim() !== data.displayName) {
+              saveName.mutate();
+            } else {
+              setEditingName(false);
+            }
+          }}
+        >
+          <Input
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            maxLength={20}
+            autoFocus
+            className="!h-9 text-center font-bold"
+          />
+          <Button type="submit" size="sm" disabled={saveName.isPending || !nameDraft.trim()}>
+            저장
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setNameDraft(data.displayName);
+              setEditingName(false);
+            }}
+          >
+            취소
+          </Button>
+        </form>
+      ) : (
+        <button
+          onClick={() => {
+            setNameDraft(data.displayName);
+            setEditingName(true);
+          }}
+          className="inline-flex items-center gap-1.5 group"
+          title="이름 변경"
+        >
+          <h3 className="font-display font-bold text-2xl">{data.displayName}</h3>
+          <Pencil className="w-3.5 h-3.5 text-ink-soft/50 group-hover:text-ink-soft" />
+        </button>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setPwOpen(true)}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink bg-cream-deep hover:bg-butter rounded-full px-3 py-1.5"
+        >
+          <KeyRound className="w-3.5 h-3.5" /> 비밀번호 변경
         </button>
         <button
+          type="button"
           onClick={logout}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-soft hover:text-bubblegum hover:bg-bubblegum/10 rounded-full px-3.5 py-2 transition"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft bg-cream-deep hover:bg-bubblegum hover:text-white rounded-full px-3 py-1.5"
         >
-          <LogOut className="w-4 h-4" /> 로그아웃
+          <LogOut className="w-3.5 h-3.5" /> 로그아웃
         </button>
       </div>
-      {editOpen && (
-        <ProfileModal
-          me={{
-            id: data.id,
-            displayName: data.displayName,
-            avatarSeed: data.avatarSeed,
-            avatarUrl: data.avatarUrl,
-          }}
-          onClose={() => setEditOpen(false)}
-        />
-      )}
-    </>
+
+      {error && <p className="text-bubblegum text-xs">{error}</p>}
+
+      {pwOpen && <PasswordChangeModal onClose={() => setPwOpen(false)} />}
+    </div>
   );
 }
 
