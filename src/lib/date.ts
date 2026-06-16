@@ -4,11 +4,8 @@ const KST_OFFSET_MIN = 9 * 60;
 
 /** Date 객체 → KST 'YYYY-MM-DD'. */
 export function toKstDateString(d: Date = new Date()): string {
-  const kst = new Date(d.getTime() + (KST_OFFSET_MIN - d.getTimezoneOffset() * -1) * 60_000);
-  // 좀 더 안전하게: UTC 기반 + offset 직접 적용
-  const utc = d.getTime() + d.getTimezoneOffset() * 60_000;
-  const kstMs = utc + KST_OFFSET_MIN * 60_000;
-  void kst;
+  // getTime() 은 서버 타임존과 무관하게 항상 UTC epoch(ms). KST offset 만 더하면 됨.
+  const kstMs = d.getTime() + KST_OFFSET_MIN * 60_000;
   const k = new Date(kstMs);
   const y = k.getUTCFullYear();
   const m = String(k.getUTCMonth() + 1).padStart(2, "0");
